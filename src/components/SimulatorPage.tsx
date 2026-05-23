@@ -1,5 +1,6 @@
 import { motion } from 'framer-motion';
 import { useEffect, useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import Modal from './Modal';
 import EmptyState from './EmptyState';
 import SimulatorGrid from './SimulatorGrid';
@@ -21,6 +22,7 @@ const initialLogs = ['Ready. Select a gate and place it on the grid.'];
 const API_BASE_URL = 'http://localhost:5000';
 
 export default function SimulatorPage({ showToast }: { showToast: (message: string) => void }) {
+  const navigate = useNavigate();
   const [selectedGate, setSelectedGate] = useState<string | null>('H');
   const [selectedCell, setSelectedCell] = useState<{ row: number; column: number } | null>(null);
   const [qubits, setQubits] = useState(initialQubits);
@@ -37,6 +39,7 @@ export default function SimulatorPage({ showToast }: { showToast: (message: stri
   const [activeRow, setActiveRow] = useState<number | null>(null);
   const [activeExecutionStep, setActiveExecutionStep] = useState<number>(-1);
   const [showBlochPanel, setShowBlochPanel] = useState(true);
+  const [isLoadingStepExecution, setIsLoadingStepExecution] = useState(false);
 
   useEffect(() => {
     let isMounted = true;
@@ -270,6 +273,59 @@ export default function SimulatorPage({ showToast }: { showToast: (message: stri
       setBackendStatusMessage('Backend unavailable');
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const executeStepByStepSimulation = async () => {
+    if (isLoadingStepExecution) {
+      return;
+    }
+
+    if (gateCount === 0) {
+      showToast('Add at least one gate before viewing execution.');
+      return;
+    }
+
+    setIsLoadingStepExecution(true);
+    const startTime = performance.now();
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/simulate-with-steps`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(buildApiPayload()),
+      });
+
+      const endTime = performance.now();
+      const responseTime = Math.round(endTime - startTime);
+
+      const json = await response.json();
+      if (!response.ok) {
+        throw new Error(json.error || 'Step-by-step simulation failed.');
+      }
+
+      pushLog('Step-by-step simulation generated successfully.');
+      setBackendConnected(true);
+      setBackendStatusMessage('Backend connected');
+
+      // Navigate to ExecutionViewer with the execution data
+      navigate('/execution', {
+        state: {
+          executionData: {
+            ...json,
+            circuitEntries,
+          },
+        },
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Backend error occurred.';
+      setServerError(message);
+      pushLog(`Step execution error: ${message}`);
+      showToast(`Execution viewer failed: ${message}`);
+      setBackendConnected(false);
+      setBackendStatusMessage('Backend unavailable');
+    } finally {
+      setIsLoadingStepExecution(false);
     }
   };
 
@@ -540,18 +596,32 @@ export default function SimulatorPage({ showToast }: { showToast: (message: stri
                   <span className={`h-2.5 w-2.5 rounded-full ${backendConnected ? 'bg-emerald-400' : 'bg-rose-400'}`} />
                   {backendStatusMessage}
                 </div>
-                <button
-                  type="button"
-                  onClick={runSimulation}
-                  disabled={isLoading}
-                  className={`w-full rounded-3xl border px-5 py-3 text-sm font-semibold uppercase tracking-[0.16em] transition ${
-                    isLoading
-                      ? 'cursor-not-allowed border-cyan-300/20 bg-cyan-300/20 text-slate-200 opacity-70'
-                      : 'border-cyan-400 bg-cyan-400 text-slate-950 shadow-[0_0_40px_rgba(79,247,228,0.22)] hover:shadow-[0_0_45px_rgba(79,247,228,0.28)]'
-                  }`}
-                >
-                  {isLoading ? 'Running Quantum Simulation...' : 'Run Quantum Simulation'}
-                </button>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <button
+                    type="button"
+                    onClick={runSimulation}
+                    disabled={isLoading}
+                    className={`rounded-3xl border px-5 py-3 text-sm font-semibold uppercase tracking-[0.16em] transition ${
+                      isLoading
+                        ? 'cursor-not-allowed border-cyan-300/20 bg-cyan-300/20 text-slate-200 opacity-70'
+                        : 'border-cyan-400 bg-cyan-400 text-slate-950 shadow-[0_0_40px_rgba(79,247,228,0.22)] hover:shadow-[0_0_45px_rgba(79,247,228,0.28)]'
+                    }`}
+                  >
+                    {isLoading ? 'Running Quantum Simulation...' : 'Run Quantum Simulation'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={executeStepByStepSimulation}
+                    disabled={isLoadingStepExecution || gateCount === 0}
+                    className={`rounded-3xl border px-5 py-3 text-sm font-semibold uppercase tracking-[0.16em] transition ${
+                      isLoadingStepExecution || gateCount === 0
+                        ? 'cursor-not-allowed border-violet-300/20 bg-violet-300/20 text-slate-200 opacity-70'
+                        : 'border-violet-400 bg-gradient-to-r from-violet-500 to-fuchsia-500 text-white shadow-[0_0_40px_rgba(139,92,246,0.22)] hover:shadow-[0_0_45px_rgba(139,92,246,0.28)]'
+                    }`}
+                  >
+                    {isLoadingStepExecution ? 'Loading Execution Viewer...' : 'View Execution'}
+                  </button>
+                </div>
               </div>
             </div>
             <div className="mt-6 grid gap-4">

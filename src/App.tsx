@@ -4,6 +4,7 @@ import Navbar from './components/Navbar';
 import Hero from './components/Hero';
 import Features from './components/Features';
 import SimulatorPage from './components/SimulatorPage';
+import ExecutionViewer from './components/ExecutionViewer';
 import Footer from './components/Footer';
 import Toast from './components/Toast';
 import ParticleBackground from './components/ParticleBackground';
@@ -52,6 +53,20 @@ function App() {
               >
                 <SimulatorPage showToast={setToast} />
                 <Footer />
+              </motion.main>
+            }
+          />
+          <Route
+            path="/execution"
+            element={
+              <motion.main
+                initial={{ opacity: 0, x: 40 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -40 }}
+                transition={{ duration: 0.45, ease: 'easeOut' }}
+                className="relative z-10"
+              >
+                <ExecutionViewer />
               </motion.main>
             }
           />
