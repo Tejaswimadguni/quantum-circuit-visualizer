@@ -1,5 +1,5 @@
 import { motion, AnimatePresence } from 'framer-motion';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import PlaybackControls from './ExecutionViewer/PlaybackControls';
 import TimelineView from './ExecutionViewer/TimelineView';
@@ -39,6 +39,7 @@ export type ExecutionData = {
 export default function ExecutionViewer() {
   const location = useLocation();
   const navigate = useNavigate();
+  const containerRef = useRef<HTMLDivElement>(null);
 
   const executionData: ExecutionData | null = location.state?.executionData || null;
 
@@ -54,6 +55,31 @@ export default function ExecutionViewer() {
       return;
     }
   }, [executionData, navigate]);
+
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      setIsFullscreen(!!document.fullscreenElement);
+    };
+
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
+  }, []);
+
+  const toggleFullscreen = async () => {
+    if (!containerRef.current) {
+      return;
+    }
+
+    try {
+      if (!document.fullscreenElement) {
+        await containerRef.current.requestFullscreen();
+      } else {
+        await document.exitFullscreen();
+      }
+    } catch (error) {
+      console.error('Fullscreen toggle failed:', error);
+    }
+  };
 
   // Auto-advance step during playback
   useEffect(() => {
@@ -134,6 +160,7 @@ export default function ExecutionViewer() {
 
   return (
     <div
+      ref={containerRef}
       className={`relative min-h-screen bg-[radial-gradient(circle_at_top_left,_rgba(79,247,228,0.16),_transparent_24%),radial-gradient(circle_at_bottom_right,_rgba(159,125,255,0.14),_transparent_24%),linear-gradient(180deg,_#050816,_#02040f)] text-slate-100 transition-all duration-300 ${
         isFullscreen ? 'fixed inset-0 z-50' : ''
       }`}
@@ -141,7 +168,7 @@ export default function ExecutionViewer() {
       {/* Exit Fullscreen Button */}
       {isFullscreen && (
         <button
-          onClick={() => setIsFullscreen(false)}
+          onClick={toggleFullscreen}
           className="absolute top-4 right-4 z-50 px-3 py-2 bg-slate-800/80 hover:bg-slate-700 rounded-lg text-sm font-medium transition-colors"
         >
           Exit Fullscreen
@@ -167,41 +194,24 @@ export default function ExecutionViewer() {
           </div>
         )}
 
-        {/* Main Content Grid */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
-          {/* Left Panel - Timeline & Main Execution */}
-          <div className="lg:col-span-2 space-y-6">
-            {/* Timeline */}
+        {/* Main Content Grid: each panel is its own grid item to avoid overlaps */}
+        <div className="grid grid-cols-1 xl:grid-cols-3 gap-6 mb-8 auto-rows-min">
+          {/* Timeline (col 1, row 1) */}
+          <div className="min-w-0">
             <TimelineView
               steps={executionData.steps}
               currentStep={currentStep}
               onStepClick={setCurrentStep}
             />
-
-            {/* Current Step Details */}
-            {currentStepData && (
-              <StepPanel step={currentStepData} totalSteps={executionData.totalSteps} />
-            )}
-
-            {/* State Evolution */}
-            {currentStepData && (
-              <StatePanel
-                stateBefore={currentStepData.stateBefore}
-                stateAfter={currentStepData.stateAfter}
-              />
-            )}
           </div>
 
-          {/* Right Panel - Bloch Sphere & Controls */}
-          <div className="space-y-6">
-            {/* Bloch Sphere */}
-            <div className="bg-slate-900/40 backdrop-blur-lg border border-slate-700/50 rounded-2xl p-6 h-80">
-              <div className="h-full">
-                <BlochSphere qubitStates={blochStates} loading={false} />
-              </div>
-            </div>
+          {/* Bloch Visualization (col 2) - span the same row block as the left column items on xl */}
+          <div className="min-w-0 xl:row-span-4 h-full">
+            <BlochSphere qubitStates={blochStates} loading={false} />
+          </div>
 
-            {/* Playback Controls */}
+          {/* Playback Controls (col 3) - independent card, spans rows */}
+          <div className="min-w-0 xl:row-span-4 h-full">
             <PlaybackControls
               isPlaying={isPlaying}
               currentStep={currentStep}
@@ -212,18 +222,37 @@ export default function ExecutionViewer() {
               onNext={handleNext}
               onReplay={handleReplay}
               onSpeedChange={setPlaybackSpeed}
-              onFullscreen={() => setIsFullscreen(!isFullscreen)}
+              onFullscreen={toggleFullscreen}
             />
           </div>
-        </div>
 
-        {/* Probability Evolution */}
-        {currentStepData && (
-          <ProbabilityPanel
-            probabilitiesBefore={currentStepData.probabilitiesBefore}
-            probabilitiesAfter={currentStepData.probabilitiesAfter}
-          />
-        )}
+          {/* Step Panel (col 1, row 2) */}
+          {currentStepData && (
+            <div className="min-w-0">
+              <StepPanel step={currentStepData} totalSteps={executionData.totalSteps} />
+            </div>
+          )}
+
+          {/* State Panel (col 1, row 3) */}
+          {currentStepData && (
+            <div className="min-w-0">
+              <StatePanel
+                stateBefore={currentStepData.stateBefore}
+                stateAfter={currentStepData.stateAfter}
+              />
+            </div>
+          )}
+
+          {/* Probability Panel (col 1, row 4) */}
+          {currentStepData && (
+            <div className="min-w-0">
+              <ProbabilityPanel
+                probabilitiesBefore={currentStepData.probabilitiesBefore}
+                probabilitiesAfter={currentStepData.probabilitiesAfter}
+              />
+            </div>
+          )}
+        </div>
 
         {/* Educational Explanation */}
         {currentStepData && <ExplanationPanel explanation={currentStepData.explanation} />}

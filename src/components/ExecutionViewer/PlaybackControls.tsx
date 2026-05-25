@@ -32,7 +32,7 @@ export default function PlaybackControls({
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.4, delay: 0.2 }}
-      className="bg-slate-900/40 backdrop-blur-lg border border-slate-700/50 rounded-2xl p-6 space-y-4"
+      className="bg-slate-900/40 backdrop-blur-lg border border-slate-700/50 rounded-2xl p-6 space-y-4 h-full xl:min-h-[28rem]"
     >
       {/* Step Counter */}
       <div className="text-center">

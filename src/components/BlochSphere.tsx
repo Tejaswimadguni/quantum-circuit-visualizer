@@ -1,6 +1,6 @@
 import { Canvas, useFrame } from '@react-three/fiber';
 import { motion } from 'framer-motion';
-import { useMemo, useRef } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Euler, Group, Mesh, Vector3 } from 'three';
 
 type QubitState = {
@@ -131,67 +131,168 @@ function BlochScene({ vector, color, loading }: { vector: [number, number, numbe
 }
 
 export default function BlochSphere({ qubitStates, loading }: BlochSphereProps) {
+  const overlayRef = useRef<HTMLDivElement>(null);
+  const [fullscreenOverlayOpen, setFullscreenOverlayOpen] = useState(false);
+
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      if (!document.fullscreenElement) {
+        setFullscreenOverlayOpen(false);
+      }
+    };
+
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
+  }, []);
+
+  useEffect(() => {
+    if (fullscreenOverlayOpen && overlayRef.current && !document.fullscreenElement) {
+      overlayRef.current.requestFullscreen().catch((error) => {
+        console.error('Fullscreen request failed:', error);
+      });
+    }
+  }, [fullscreenOverlayOpen]);
+
+  const openFullscreenOverlay = () => setFullscreenOverlayOpen(true);
+
+  const closeFullscreenOverlay = async () => {
+    if (document.fullscreenElement) {
+      await document.exitFullscreen();
+    }
+    setFullscreenOverlayOpen(false);
+  };
+
   return (
-    <div className="rounded-[2rem] border border-white/10 bg-[#061028]/95 p-5 shadow-glow">
-      <div className="flex items-center justify-between gap-4">
-        <div>
-          <p className="text-sm uppercase tracking-[0.32em] text-cyan-300/85">Bloch visualization</p>
-          <h3 className="mt-2 text-2xl font-semibold text-white">Qubit state spheres</h3>
+    <>
+      <div className="rounded-[2rem] border border-white/10 bg-[#061028]/95 p-5 shadow-glow w-full min-w-0 lg:min-w-[420px] flex-none">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="min-w-0">
+            <p className="text-sm uppercase tracking-[0.32em] text-cyan-300/85">Bloch visualization</p>
+            <h3 className="mt-2 text-2xl font-semibold text-white">Qubit state spheres</h3>
+          </div>
+          <div className="flex flex-wrap items-center gap-3">
+            <div className="rounded-full bg-white/5 px-3 py-1 text-xs uppercase tracking-[0.28em] text-slate-300">
+              {loading ? 'Updating...' : 'Synchronized'}
+            </div>
+            <button
+              type="button"
+              onClick={openFullscreenOverlay}
+              title="Open Bloch visualization in fullscreen mode"
+              className="rounded-full border border-slate-600/80 bg-slate-900/80 px-4 py-2 text-xs font-semibold text-slate-200 transition hover:border-cyan-400/80 hover:text-cyan-200"
+            >
+              Fullscreen Mode
+            </button>
+          </div>
         </div>
-        <div className="rounded-full bg-white/5 px-3 py-1 text-xs uppercase tracking-[0.28em] text-slate-300">
-          {loading ? 'Updating...' : 'Synchronized'}
+        <div className="mt-6 grid gap-4 sm:grid-cols-2">
+          {qubitStates.map((state) => (
+            <motion.div
+              key={state.label}
+              initial={{ opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.35, ease: 'easeOut' }}
+              className="relative overflow-hidden rounded-[1.75rem] border border-white/10 bg-[#07111f]/90 p-4 min-w-0"
+            >
+              <div className="absolute inset-x-4 top-4 flex items-center justify-between text-xs uppercase tracking-[0.28em] text-slate-500">
+                <span className="text-cyan-300">{state.label}</span>
+                <span>{(state.probabilityZero * 100).toFixed(1)}% |0⟩</span>
+              </div>
+              <div className="pointer-events-none absolute inset-0">
+                <span className="absolute left-3 top-10 text-[10px] uppercase tracking-[0.2em] text-cyan-300">X</span>
+                <span className="absolute right-3 top-10 text-[10px] uppercase tracking-[0.2em] text-fuchsia-300">Y</span>
+                <span className="absolute left-1/2 top-3 -translate-x-1/2 text-[10px] uppercase tracking-[0.2em] text-slate-400">|0⟩</span>
+                <span className="absolute left-1/2 bottom-3 -translate-x-1/2 text-[10px] uppercase tracking-[0.2em] text-slate-400">|1⟩</span>
+                <span className="absolute right-3 bottom-10 text-[10px] uppercase tracking-[0.2em] text-violet-300">Z</span>
+              </div>
+              {loading && (
+                <div className="absolute inset-0 z-10 flex items-center justify-center rounded-[1.75rem] bg-slate-950/40 backdrop-blur-sm">
+                  <div className="h-12 w-12 animate-spin rounded-full border-4 border-cyan-300/40 border-t-cyan-100" />
+                </div>
+              )}
+              <div className="h-72 w-full">
+                <Canvas className="w-full h-full" camera={{ position: [0, 0, 3.6], fov: 35 }} dpr={[1, 2]}>
+                  <ambientLight intensity={0.45} />
+                  <directionalLight position={[4, 5, 4]} intensity={0.8} />
+                  <pointLight position={[-4, -2, 3]} intensity={0.5} />
+                  <BlochScene vector={state.vector} color={state.color} loading={loading} />
+                </Canvas>
+              </div>
+              <div className="mt-4 space-y-2 text-sm text-slate-300">
+                <div className="flex items-center justify-between rounded-3xl bg-white/5 px-3 py-2">
+                  <span>X axis</span>
+                  <span className="font-semibold text-white">{state.vector[0].toFixed(2)}</span>
+                </div>
+                <div className="flex items-center justify-between rounded-3xl bg-white/5 px-3 py-2">
+                  <span>Y axis</span>
+                  <span className="font-semibold text-white">{state.vector[1].toFixed(2)}</span>
+                </div>
+                <div className="flex items-center justify-between rounded-3xl bg-white/5 px-3 py-2">
+                  <span>Z axis</span>
+                  <span className="font-semibold text-white">{state.vector[2].toFixed(2)}</span>
+                </div>
+              </div>
+            </motion.div>
+          ))}
         </div>
       </div>
-      <div className="mt-6 grid gap-4 sm:grid-cols-2">
-        {qubitStates.map((state) => (
-          <motion.div
-            key={state.label}
-            initial={{ opacity: 0, y: 12 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.35, ease: 'easeOut' }}
-            className="relative overflow-hidden rounded-[1.75rem] border border-white/10 bg-[#07111f]/90 p-4"
-          >
-            <div className="absolute inset-x-4 top-4 flex items-center justify-between text-xs uppercase tracking-[0.28em] text-slate-500">
-              <span className="text-cyan-300">{state.label}</span>
-              <span>{(state.probabilityZero * 100).toFixed(1)}% |0⟩</span>
+
+      {fullscreenOverlayOpen && (
+        <div
+          ref={overlayRef}
+          className="fixed inset-0 z-50 flex min-h-screen flex-col bg-slate-950/95 text-slate-100"
+        >
+          <div className="relative flex items-center justify-between border-b border-white/10 px-6 py-4">
+            <div>
+              <p className="text-xs uppercase tracking-[0.32em] text-cyan-300/80">Fullscreen Bloch View</p>
+              <h2 className="mt-2 text-3xl font-semibold text-white">Expanded Qubit state spheres</h2>
             </div>
-            <div className="pointer-events-none absolute inset-0">
-              <span className="absolute left-3 top-10 text-[10px] uppercase tracking-[0.2em] text-cyan-300">X</span>
-              <span className="absolute right-3 top-10 text-[10px] uppercase tracking-[0.2em] text-fuchsia-300">Y</span>
-              <span className="absolute left-1/2 top-3 -translate-x-1/2 text-[10px] uppercase tracking-[0.2em] text-slate-400">|0⟩</span>
-              <span className="absolute left-1/2 bottom-3 -translate-x-1/2 text-[10px] uppercase tracking-[0.2em] text-slate-400">|1⟩</span>
-              <span className="absolute right-3 bottom-10 text-[10px] uppercase tracking-[0.2em] text-violet-300">Z</span>
+            <button
+              type="button"
+              onClick={closeFullscreenOverlay}
+              className="rounded-full border border-slate-600/80 bg-slate-900/80 px-4 py-2 text-xs font-semibold text-slate-200 transition hover:border-red-400/80 hover:text-red-300"
+            >
+              Close
+            </button>
+          </div>
+          <div className="flex-1 overflow-auto p-6">
+            <div className="mx-auto grid max-w-7xl gap-6 sm:grid-cols-2">
+              {qubitStates.map((state) => (
+                <div
+                  key={state.label}
+                  className="rounded-[2rem] border border-white/10 bg-[#07111f]/95 p-6"
+                >
+                  <div className="flex items-center justify-between gap-4 text-sm uppercase tracking-[0.28em] text-slate-400 mb-4">
+                    <span className="text-cyan-300">{state.label}</span>
+                    <span>{(state.probabilityZero * 100).toFixed(1)}% |0⟩</span>
+                  </div>
+                  <div className="h-[34rem] rounded-[1.75rem] bg-[#061028]/90">
+                    <Canvas camera={{ position: [0, 0, 3.6], fov: 35 }} dpr={[1, 2]}>
+                      <ambientLight intensity={0.45} />
+                      <directionalLight position={[4, 5, 4]} intensity={0.8} />
+                      <pointLight position={[-4, -2, 3]} intensity={0.5} />
+                      <BlochScene vector={state.vector} color={state.color} loading={loading} />
+                    </Canvas>
+                  </div>
+                  <div className="mt-4 space-y-3 text-sm text-slate-300">
+                    <div className="flex items-center justify-between rounded-3xl bg-white/5 px-3 py-2">
+                      <span>X axis</span>
+                      <span className="font-semibold text-white">{state.vector[0].toFixed(2)}</span>
+                    </div>
+                    <div className="flex items-center justify-between rounded-3xl bg-white/5 px-3 py-2">
+                      <span>Y axis</span>
+                      <span className="font-semibold text-white">{state.vector[1].toFixed(2)}</span>
+                    </div>
+                    <div className="flex items-center justify-between rounded-3xl bg-white/5 px-3 py-2">
+                      <span>Z axis</span>
+                      <span className="font-semibold text-white">{state.vector[2].toFixed(2)}</span>
+                    </div>
+                  </div>
+                </div>
+              ))}
             </div>
-            {loading && (
-              <div className="absolute inset-0 z-10 flex items-center justify-center rounded-[1.75rem] bg-slate-950/40 backdrop-blur-sm">
-                <div className="h-12 w-12 animate-spin rounded-full border-4 border-cyan-300/40 border-t-cyan-100" />
-              </div>
-            )}
-            <div className="h-72">
-              <Canvas camera={{ position: [0, 0, 3.6], fov: 35 }} dpr={[1, 2]}>
-                <ambientLight intensity={0.45} />
-                <directionalLight position={[4, 5, 4]} intensity={0.8} />
-                <pointLight position={[-4, -2, 3]} intensity={0.5} />
-                <BlochScene vector={state.vector} color={state.color} loading={loading} />
-              </Canvas>
-            </div>
-            <div className="mt-4 space-y-2 text-sm text-slate-300">
-              <div className="flex items-center justify-between rounded-3xl bg-white/5 px-3 py-2">
-                <span>X axis</span>
-                <span className="font-semibold text-white">{state.vector[0].toFixed(2)}</span>
-              </div>
-              <div className="flex items-center justify-between rounded-3xl bg-white/5 px-3 py-2">
-                <span>Y axis</span>
-                <span className="font-semibold text-white">{state.vector[1].toFixed(2)}</span>
-              </div>
-              <div className="flex items-center justify-between rounded-3xl bg-white/5 px-3 py-2">
-                <span>Z axis</span>
-                <span className="font-semibold text-white">{state.vector[2].toFixed(2)}</span>
-              </div>
-            </div>
-          </motion.div>
-        ))}
-      </div>
-    </div>
+          </div>
+        </div>
+      )}
+    </>
   );
 }
