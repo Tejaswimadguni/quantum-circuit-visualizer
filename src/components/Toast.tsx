@@ -1,5 +1,4 @@
 import { AnimatePresence, motion } from 'framer-motion';
-import { useEffect } from 'react';
 
 interface ToastProps {
   message: string;
@@ -7,20 +6,6 @@ interface ToastProps {
 }
 
 export default function Toast({ message, onDismiss }: ToastProps) {
-  useEffect(() => {
-    if (!message) {
-      return;
-    }
-
-    const timeout = window.setTimeout(() => {
-      onDismiss();
-    }, 3200);
-
-    return () => {
-      window.clearTimeout(timeout);
-    };
-  }, [message, onDismiss]);
-
   return (
     <AnimatePresence>
       {message ? (

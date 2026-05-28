@@ -35,7 +35,7 @@ export default function SimulatorPage({ showToast }: { showToast: (message: stri
   const [serverError, setServerError] = useState<string | null>(null);
   const [backendConnected, setBackendConnected] = useState(false);
   const [backendStatusMessage, setBackendStatusMessage] = useState('Checking backend...');
-  const [requestTimeMs, setRequestTimeMs] = useState<number | null>(null);
+  const [requestTimeMs, setRequestTimeMs] = useState<number | null>(null);  
   const [activeRow, setActiveRow] = useState<number | null>(null);
   const [activeExecutionStep, setActiveExecutionStep] = useState<number>(-1);
   const [showBlochPanel, setShowBlochPanel] = useState(true);
@@ -210,6 +210,14 @@ export default function SimulatorPage({ showToast }: { showToast: (message: stri
 
   const progressValue = isLoading ? 72 : serverCounts ? 100 : 0;
 
+  const runButtonReason = isLoading
+    ? 'Simulation already running.'
+    : gateCount === 0
+    ? 'Add at least one gate to run simulation.'
+    : !backendConnected
+    ? 'Backend unavailable.'
+    : '';
+
   const pushLog = (message: string) => {
     setLogs((prev) => [message, ...prev].slice(0, 8));
   };
@@ -236,35 +244,92 @@ export default function SimulatorPage({ showToast }: { showToast: (message: stri
   };
 
   const executeBackendSimulation = async () => {
+    console.log('STEP 1: executeBackendSimulation entered');
     setServerError(null);
     setServerCounts(null);
     setServerProbabilities(null);
     setRequestTimeMs(null);
     setIsLoading(true);
 
+    const payload = buildApiPayload();
+    console.log('STEP 1: built payload', JSON.stringify(payload));
+
     const startTime = performance.now();
 
     try {
+      console.log('STEP 1: sending backend request');
       const response = await fetch(`${API_BASE_URL}/simulate`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(buildApiPayload()),
+        body: JSON.stringify(payload),
       });
 
+      console.log('STEP 2: backend response received', response.status, response.statusText);
       const endTime = performance.now();
       setRequestTimeMs(Math.round(endTime - startTime));
 
+      console.log('STEP 3: parsing backend JSON');
       const json = await response.json();
+      console.log('STEP 3: parsed JSON', JSON.stringify(json));
+
       if (!response.ok) {
+        console.log('STEP 3x: response not OK, throwing');
         throw new Error(json.error || 'Backend simulation failed.');
       }
 
+      console.log('STEP 4: before state updates');
       setServerCounts(json.counts || null);
       setServerProbabilities(json.probabilities || null);
       pushLog('Backend simulation returned successfully.');
       setBackendConnected(true);
       setBackendStatusMessage('Backend connected');
+      // Build executionData to pass to ExecutionViewer and navigate
+      try {
+        const steps = executionSequence.map((entry, idx) => ({
+          stepNumber: idx,
+          gate: entry.gate,
+          qubit: entry.qubit,
+          control: (entry as any).control ?? undefined,
+          target: (entry as any).target ?? undefined,
+          column: entry.column,
+          stateBefore: '',
+          stateAfter: '',
+          probabilitiesBefore: {},
+          probabilitiesAfter: json.probabilities || {},
+          explanation: '',
+        }));
+
+        const executionData = {
+          steps: steps.length ? steps : [
+            {
+              stepNumber: 0,
+              gate: 'RESULT',
+              column: 0,
+              stateBefore: '',
+              stateAfter: '',
+              probabilitiesBefore: {},
+              probabilitiesAfter: json.probabilities || {},
+              explanation: 'Final result',
+            },
+          ],
+          totalSteps: steps.length || 1,
+          qubitCount: qubits.length,
+          gateCount,
+          circuitDepth,
+          finalCounts: json.counts || {},
+          finalProbabilities: json.probabilities || {},
+          executionTime: requestTimeMs !== null ? `${requestTimeMs} ms` : 'Pending',
+          circuitEntries,
+        };
+
+        console.log('STEP NAV: navigating to /execution with executionData');
+        navigate('/execution', { state: { executionData } });
+      } catch (navError) {
+        console.error('Navigation to ExecutionViewer failed', navError);
+      }
+      console.log('STEP 5: after state updates');
     } catch (error) {
+      console.error('RUN SIMULATION FAILED', error);
       const message = error instanceof Error ? error.message : 'Backend error occurred.';
       setServerError(message);
       pushLog(`Backend simulation error: ${message}`);
@@ -272,6 +337,7 @@ export default function SimulatorPage({ showToast }: { showToast: (message: stri
       setBackendConnected(false);
       setBackendStatusMessage('Backend unavailable');
     } finally {
+      console.log('STEP 6: finally clearing isLoading');
       setIsLoading(false);
     }
   };
@@ -285,7 +351,6 @@ export default function SimulatorPage({ showToast }: { showToast: (message: stri
       showToast('Add at least one gate before viewing execution.');
       return;
     }
-
     setIsLoadingStepExecution(true);
     const startTime = performance.now();
 
@@ -428,21 +493,39 @@ export default function SimulatorPage({ showToast }: { showToast: (message: stri
     showToast(`${demoName.charAt(0).toUpperCase() + demoName.slice(1)} demo loaded.`);
   };
 
-  const runSimulation = async () => {
-    if (isLoading) {
-      return;
-    }
+const runSimulation = async () => {
+  console.log('STEP 0: runSimulation entered');
+  console.log('STEP 0a: isLoading =', isLoading);
+  console.log('STEP 0b: gateCount =', gateCount);
 
-    if (gateCount === 0) {
-      showToast('Add at least one gate before simulating.');
-      return;
-    }
+  if (isLoading) {
+    console.log('STEP 0x: STOPPED, simulation already running');
+    return;
+  }
 
-    setModalOpen(true);
-    pushLog('Submitting circuit to backend.');
-    showToast('Running backend simulation.');
+  if (gateCount === 0) {
+    console.log('STEP 0x: STOPPED, no gates in circuit');
+    showToast('Add at least one gate before simulating.');
+    return;
+  }
+
+  console.log('STEP 0: PASSED VALIDATION');
+
+  console.log('STEP 1: preparing modal and backend request');
+  setModalOpen(true);
+  pushLog('Submitting circuit to backend.');
+  showToast('Running backend simulation.');
+
+  try {
+    console.log('STEP 2: calling executeBackendSimulation');
     await executeBackendSimulation();
-  };
+    console.log('STEP 2: executeBackendSimulation returned successfully');
+  } catch (error) {
+    console.error('RUN SIMULATION FAILED during executeBackendSimulation', error);
+    throw error;
+  }
+  console.log('STEP 3: runSimulation completed');
+};
 
   const clearSelection = () => {
     setSelectedGate(null);
@@ -555,7 +638,14 @@ export default function SimulatorPage({ showToast }: { showToast: (message: stri
                     <h2 className="mt-2 text-2xl font-semibold text-white">Circuit commands</h2>
                   </div>
                   <div className="inline-flex items-center gap-3 rounded-full bg-[#0d1c32]/90 px-4 py-2 text-sm text-slate-300">
-                    <span className="font-semibold text-white">Ctrl+R</span> run simulation
+                    <button
+                    type="button"
+                   onClick={runSimulation}
+                    disabled={isLoading}
+                    className="font-semibold text-white rounded-full bg-cyan-500 px-5 py-3 hover:bg-cyan-400 transition-all"
+                    >
+                   {isLoading ? 'Running...' : 'Run Simulation'}
+                  </button>
                   </div>
                 </div>
                 <div className="grid gap-4">
@@ -597,18 +687,19 @@ export default function SimulatorPage({ showToast }: { showToast: (message: stri
                   {backendStatusMessage}
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <button
-                    type="button"
-                    onClick={runSimulation}
-                    disabled={isLoading}
-                    className={`rounded-3xl border px-5 py-3 text-sm font-semibold uppercase tracking-[0.16em] transition ${
-                      isLoading
-                        ? 'cursor-not-allowed border-cyan-300/20 bg-cyan-300/20 text-slate-200 opacity-70'
-                        : 'border-cyan-400 bg-cyan-400 text-slate-950 shadow-[0_0_40px_rgba(79,247,228,0.22)] hover:shadow-[0_0_45px_rgba(79,247,228,0.28)]'
-                    }`}
-                  >
-                    {isLoading ? 'Running Quantum Simulation...' : 'Run Quantum Simulation'}
-                  </button>
+                 <button
+  type="button"
+  onClick={runSimulation}
+  disabled={isLoading}
+  className={`rounded-3xl border px-5 py-3 text-sm font-semibold uppercase tracking-[0.16em]
+    ${
+      isLoading
+        ? 'cursor-not-allowed border-cyan-300/20 bg-cyan-300/20 text-slate-200 opacity-70'
+        : 'border-cyan-400 bg-cyan-400 text-slate-950 shadow-[0_0_40px_rgba(79,247,228,0.22)]'
+    }`}
+>
+  {isLoading ? 'Running Quantum Simulation...' : 'Run Quantum Simulation'}
+</button>
                   <button
                     type="button"
                     onClick={executeStepByStepSimulation}
@@ -622,6 +713,11 @@ export default function SimulatorPage({ showToast }: { showToast: (message: stri
                     {isLoadingStepExecution ? 'Loading Execution Viewer...' : 'View Execution'}
                   </button>
                 </div>
+                {runButtonReason ? (
+                  <div className="mt-4 rounded-3xl border border-amber-400/20 bg-amber-400/5 px-4 py-3 text-sm text-amber-100">
+                    {runButtonReason}
+                  </div>
+                ) : null}
               </div>
             </div>
             <div className="mt-6 grid gap-4">
