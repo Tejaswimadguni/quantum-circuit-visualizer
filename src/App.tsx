@@ -9,6 +9,7 @@ import Footer from './components/Footer';
 import Toast from './components/Toast';
 import ParticleBackground from './components/ParticleBackground';
 import { useMemo, useState } from 'react';
+import About from './components/About';
 
 function App() {
   const location = useLocation();
@@ -37,6 +38,7 @@ function App() {
               >
                 <Hero />
                 <Features />
+                <About />
                 <Footer />
               </motion.main>
             }
