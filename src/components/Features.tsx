@@ -1,128 +1,76 @@
 import { motion } from 'framer-motion';
-import { featureCards } from '../data/features';
 import { Link } from 'react-router-dom';
+import { featureCards } from '../data/features';
+import FeatureIcon from './landing/FeatureIcon';
 
-const accentClasses: Record<string, string> = {
-  cyan: 'from-cyan-300/50 to-cyan-500/20',
-  violet: 'from-violet-400/50 to-fuchsia-500/15',
-  pink: 'from-pink-400/50 to-fuchsia-400/15',
-  blue: 'from-sky-400/50 to-cyan-400/15',
-  teal: 'from-teal-400/50 to-cyan-300/15',
-  gold: 'from-amber-400/40 to-slate-800/15',
+const accentBorder: Record<string, string> = {
+  cyan: 'group-hover:border-accent-cyan/40 group-hover:shadow-glow',
+  violet: 'group-hover:border-accent-violet/40 group-hover:shadow-glow-violet',
 };
 
-const featureLinks: Record<
-  string,
-  {
-    text: string;
-    link?: string;
-    external?: string;
-  }
-> = {
-  'Real-time Simulation': {
-    text: 'Open Simulator',
-    link: '/simulator',
-  },
-
-  'Drag & Drop Gates': {
-    text: 'Build Circuit',
-    link: '/simulator',
-  },
-
-  'Quantum State Visualization': {
-    text: 'Open Viewer',
-    link: '/execution',
-  },
-
-  'Bloch Sphere Support': {
-    text: 'View Bloch Sphere',
-    link: '/execution',
-  },
-
-  'IBM Qiskit Integration': {
-    text: 'Open Qiskit',
-    external: 'https://qiskit.org/',
-  },
-
-  'Interactive Learning': {
-    text: 'Start Learning',
-    link: '/simulator',
-  },
+const accentIcon: Record<string, string> = {
+  cyan: 'text-accent-cyan bg-accent-cyan/10 border-accent-cyan/25',
+  violet: 'text-accent-violet bg-accent-violet/10 border-accent-violet/25',
 };
 
 export default function Features() {
   return (
-    <section
-      id="features"
-      className="relative px-6 pb-24 pt-10 sm:px-10 lg:px-12"
-    >
+    <section id="features" className="section-pad border-t border-slate-800/50">
       <div className="mx-auto max-w-7xl">
-        <div className="mb-12 max-w-3xl space-y-4">
-          <p className="text-sm uppercase tracking-[0.3em] text-cyan-300/80">
-            Platform features
-          </p>
-
-          <h2 className="text-3xl font-semibold tracking-tight text-white sm:text-4xl">
-            Quantum workflow designed for speed, clarity, and impact.
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          transition={{ duration: 0.6 }}
+          className="mb-14 max-w-2xl"
+        >
+          <p className="text-sm font-medium uppercase tracking-widest text-accent-cyan">Capabilities</p>
+          <h2 className="mt-3 text-3xl font-semibold tracking-tight text-white sm:text-4xl">
+            Everything you need to explore quantum circuits
           </h2>
-
-          <p className="text-base leading-7 text-slate-400">
-            Everything you need to design, debug, and analyze quantum circuits
-            in one polished interface.
+          <p className="mt-4 text-base leading-7 text-muted">
+            From circuit design to step-by-step execution analysis — built for researchers, students, and
+            curious builders.
           </p>
-        </div>
+        </motion.div>
 
         <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
-          {featureCards.map((feature) => {
-            const action = featureLinks[feature.title];
-
-            return (
-              <motion.article
-                key={feature.title}
-                whileHover={{ y: -8 }}
-                transition={{ duration: 0.3, ease: 'easeOut' }}
-                className="glass-card overflow-hidden rounded-[2rem] border border-white/10 p-6 shadow-[0_0_40px_rgba(79,247,228,0.08)] hover:shadow-[0_0_60px_rgba(79,247,228,0.18)] transition-all duration-300"
-                style={{
-                  backgroundImage:
-                    'linear-gradient(135deg, rgba(255,255,255,0.04), rgba(255,255,255,0.01))',
-                }}
+          {featureCards.map((feature, index) => (
+            <motion.article
+              key={feature.title}
+              initial={{ opacity: 0, y: 24 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.5, delay: index * 0.06 }}
+              whileHover={{ y: -6 }}
+              className={`group rounded-2xl border border-slate-700/50 bg-surface p-6 shadow-card transition-all duration-300 ${accentBorder[feature.accent]}`}
+            >
+              <div
+                className={`mb-5 inline-flex rounded-xl border p-3 ${accentIcon[feature.accent]}`}
               >
-                <div
-                  className={`mb-5 h-12 w-12 rounded-3xl bg-gradient-to-br ${accentClasses[feature.accent]} shadow-[0_0_34px_rgba(79,247,228,0.18)]`}
-                />
-
-                <h3 className="mb-3 text-xl font-semibold text-white">
-                  {feature.title}
-                </h3>
-
-                <p className="text-sm leading-6 text-slate-300">
-                  {feature.description}
-                </p>
-
-                {action.external ? (
-                  <a
-                    href={action.external}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="mt-6 inline-flex items-center gap-2 text-sm font-semibold uppercase tracking-[0.18em] text-cyan-200 hover:text-cyan-100 transition-all duration-300 hover:translate-x-1"
-                  >
-                    {action.text}
-                    <span aria-hidden="true">→</span>
-                  </a>
-                ) : (
-                  <Link
-                    to={action.link || '/'}
-                    onClick={() => window.scrollTo(0, 0)}
-                    className="mt-6 inline-flex items-center gap-2 text-sm font-semibold uppercase tracking-[0.18em] text-cyan-200 hover:text-cyan-100 transition-all duration-300 hover:translate-x-1"
-                  >
-                    {action.text}
-                    <span aria-hidden="true">→</span>
-                  </Link>
-                )}
-              </motion.article>
-            );
-          })}
+                <FeatureIcon name={feature.icon} />
+              </div>
+              <h3 className="text-lg font-semibold text-white">{feature.title}</h3>
+              <p className="mt-3 text-sm leading-6 text-muted">{feature.description}</p>
+            </motion.article>
+          ))}
         </div>
+
+        <motion.div
+          initial={{ opacity: 0 }}
+          whileInView={{ opacity: 1 }}
+          viewport={{ once: true }}
+          className="mt-12 text-center"
+        >
+          <Link
+            to="/simulator"
+            onClick={() => window.scrollTo(0, 0)}
+            className="inline-flex items-center gap-2 text-sm font-semibold text-accent-cyan transition hover:text-cyan-400"
+          >
+            Open the simulator
+            <span aria-hidden>→</span>
+          </Link>
+        </motion.div>
       </div>
     </section>
   );

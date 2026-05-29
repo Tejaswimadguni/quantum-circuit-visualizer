@@ -1,32 +1,45 @@
-export const featureCards = [
+export type FeatureCard = {
+  title: string;
+  description: string;
+  accent: 'cyan' | 'violet';
+  icon: 'simulation' | 'state' | 'bloch' | 'playback' | 'probability' | 'learning';
+};
+
+export const featureCards: FeatureCard[] = [
   {
-    title: 'Real-time Simulation',
-    description: 'Instant quantum feedback for every gate placement with smooth state updates.',
+    title: 'Real Quantum Simulation',
+    description: 'Run circuits on a real quantum backend powered by IBM Qiskit with accurate statevectors and measurement statistics.',
     accent: 'cyan',
+    icon: 'simulation',
   },
   {
-    title: 'Drag & Drop Gates',
-    description: 'Build circuits visually using an intuitive gate toolbox and responsive drag flow.',
+    title: 'State Evolution Tracking',
+    description: 'Observe quantum states before and after each gate with formatted amplitudes and step-by-step history.',
     accent: 'violet',
+    icon: 'state',
   },
   {
-    title: 'Quantum State Visualization',
-    description: 'See amplitude probabilities, phasors, and state vector details in real time.',
-    accent: 'pink',
+    title: 'Bloch Sphere Visualization',
+    description: 'Visualize single-qubit transformations on the Bloch sphere as your circuit executes.',
+    accent: 'cyan',
+    icon: 'bloch',
   },
   {
-    title: 'Bloch Sphere Support',
-    description: 'Explore single qubit rotations with an immersive Bloch sphere preview.',
-    accent: 'blue',
+    title: 'Execution Playback',
+    description: 'Play, pause, step forward and backward, and replay every gate in your circuit like a timeline.',
+    accent: 'violet',
+    icon: 'playback',
   },
   {
-    title: 'IBM Qiskit Integration',
-    description: 'Prepare circuits ready for export to Qiskit and real quantum hardware.',
-    accent: 'teal',
+    title: 'Probability Analysis',
+    description: 'Track probability distributions across execution steps with before-and-after comparisons.',
+    accent: 'cyan',
+    icon: 'probability',
   },
   {
-    title: 'Interactive Learning',
-    description: 'Step-by-step examples, tooltips, and simulation insights for every operator.',
-    accent: 'gold',
+    title: 'Educational Learning Mode',
+    description: 'Understand quantum circuits interactively with gate explanations and visual feedback.',
+    accent: 'violet',
+    icon: 'learning',
   },
 ];

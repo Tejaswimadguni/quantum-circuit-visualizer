@@ -1,6 +1,6 @@
 import { motion } from 'framer-motion';
 import { useEffect, useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import Modal from './Modal';
 import EmptyState from './EmptyState';
 import SimulatorGrid from './SimulatorGrid';
@@ -24,6 +24,7 @@ const API_BASE_URL = 'http://localhost:5000';
 
 export default function SimulatorPage({ showToast }: { showToast: (message: string) => void }) {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [selectedGate, setSelectedGate] = useState<string | null>('H');
   const [selectedCell, setSelectedCell] = useState<{ row: number; column: number } | null>(null);
   const [qubits, setQubits] = useState(initialQubits);
@@ -438,6 +439,16 @@ export default function SimulatorPage({ showToast }: { showToast: (message: stri
     pushLog(`Loaded ${demoName} demo circuit.`);
     showToast(`${demoName.charAt(0).toUpperCase() + demoName.slice(1)} demo loaded.`);
   };
+
+  useEffect(() => {
+    const demo = searchParams.get('demo');
+    if (demo && demoCircuits[demo]) {
+      handleDemo(demo);
+      setSearchParams({}, { replace: true });
+    }
+    // Load demo from landing page link once on mount
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const runSimulation = async () => {
     if (isLoading) {
