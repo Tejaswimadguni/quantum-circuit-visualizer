@@ -14,6 +14,7 @@ import {
   demoCircuits,
   getCircuitDepth,
   getGateCount,
+  resolveCnotWiring,
   CircuitEntry,
 } from '../utils/circuit';
 
@@ -225,8 +226,7 @@ export default function SimulatorPage({ showToast }: { showToast: (message: stri
   const buildApiPayload = () => {
     return circuitEntries.map((entry) => {
       if (entry.gate === 'CNOT') {
-        const control = entry.control ?? entry.qubit;
-        const target = entry.target ?? (entry.qubit < qubits.length - 1 ? entry.qubit + 1 : Math.max(0, entry.qubit - 1));
+        const { control, target } = resolveCnotWiring(entry, qubits.length);
         return {
           gate: 'CNOT',
           control,

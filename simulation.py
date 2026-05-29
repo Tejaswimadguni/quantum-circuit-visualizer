@@ -158,7 +158,7 @@ def _get_probabilities_from_statevector(statevector: np.ndarray) -> Dict[str, fl
         state = format(i, f'0{n_qubits}b')
         prob = abs(amplitude) ** 2
         if prob > 1e-10:
-            probabilities[state] = round(prob, 4)
+            probabilities[state] = round(float(prob), 4)
 
     return probabilities
 
@@ -168,6 +168,11 @@ def _statevector_array(statevector: Any) -> np.ndarray:
     if isinstance(statevector, Statevector):
         return statevector.data
     return np.asarray(statevector, dtype=complex)
+
+
+def _qubit_bit(index: int, qubit: int) -> int:
+    """Extract computational-basis bit for qubit (Qiskit: q0 = LSB)."""
+    return (index >> qubit) & 1
 
 
 def _get_bloch_vectors_from_statevector(statevector: Any, n_qubits: int) -> List[List[float]]:
@@ -184,13 +189,13 @@ def _get_bloch_vectors_from_statevector(statevector: Any, n_qubits: int) -> List
                 for k in range(n_qubits):
                     if k == q:
                         continue
-                    if ((i >> (n_qubits - 1 - k)) & 1) != ((j >> (n_qubits - 1 - k)) & 1):
+                    if _qubit_bit(i, k) != _qubit_bit(j, k):
                         other_bits_match = False
                         break
                 if not other_bits_match:
                     continue
-                iq = (i >> (n_qubits - 1 - q)) & 1
-                jq = (j >> (n_qubits - 1 - q)) & 1
+                iq = _qubit_bit(i, q)
+                jq = _qubit_bit(j, q)
                 rho[iq, jq] += sv[i] * np.conj(sv[j])
 
         x = float(2 * np.real(rho[0, 1]))
@@ -200,7 +205,8 @@ def _get_bloch_vectors_from_statevector(statevector: Any, n_qubits: int) -> List
         if norm > 1e-10:
             x, y, z = x / norm, y / norm, z / norm
         else:
-            x, y, z = 0.0, 0.0, 1.0
+            # Maximally mixed / entangled reduced state — Bloch vector at origin, not |0⟩
+            x, y, z = 0.0, 0.0, 0.0
         vectors.append([round(x, 4), round(y, 4), round(z, 4)])
 
     return vectors
@@ -211,7 +217,8 @@ def _get_bloch_vectors_from_probabilities(probabilities: Dict[str, float], n_qub
     vectors: List[List[float]] = []
     for q in range(n_qubits):
         p0 = sum(
-            prob for state, prob in probabilities.items()
+            prob
+            for state, prob in probabilities.items()
             if len(state) > q and state[len(state) - 1 - q] == '0'
         )
         p1 = max(0.0, 1.0 - p0)
@@ -228,7 +235,7 @@ def _bloch_vectors_for_step(
         return _get_bloch_vectors_from_statevector(statevector, n_qubits)
     if probabilities:
         return _get_bloch_vectors_from_probabilities(probabilities, n_qubits)
-    return [[0.0, 0.0, 1.0] for _ in range(n_qubits)]
+    return [[0.0, 0.0, 0.0] for _ in range(n_qubits)]
 
 
 def run_quantum_simulation_with_steps(
@@ -258,11 +265,14 @@ def run_quantum_simulation_with_steps(
         
         # Get state before
         if isinstance(current_statevector, Statevector):
-            state_before = _format_statevector(current_statevector.data)
-            probs_before = _get_probabilities_from_statevector(current_statevector.data)
+            sv_before = current_statevector.data
+            state_before = _format_statevector(sv_before)
+            probs_before = _get_probabilities_from_statevector(sv_before)
+            bloch_before = _bloch_vectors_for_step(current_statevector, probs_before, qubit_count)
         else:
             state_before = _format_statevector(current_statevector)
             probs_before = _get_probabilities_from_statevector(current_statevector)
+            bloch_before = _bloch_vectors_for_step(current_statevector, probs_before, qubit_count)
 
         # Apply gate
         if gate == 'CNOT':
@@ -343,6 +353,7 @@ def run_quantum_simulation_with_steps(
             'stateAfter': state_after,
             'probabilitiesBefore': probs_before,
             'probabilitiesAfter': probs_after,
+            'blochVectorsBefore': bloch_before,
             'blochVectorsAfter': bloch_after,
             'explanation': _get_gate_explanation(
                 gate,

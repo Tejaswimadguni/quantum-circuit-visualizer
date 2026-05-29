@@ -1,0 +1,50 @@
+{
+  "steps": [
+    {
+      "stepNumber": 1,
+      "gate": "H",
+      "qubit": 0,
+      "control": null,
+      "target": null,
+      "column": 0,
+      "stateBefore": "1.000|0\u27e9",
+      "stateAfter": "0.707|0\u27e9 + 0.707|1\u27e9",
+      "probabilitiesBefore": {
+        "0": 1.0
+      },
+      "probabilitiesAfter": {
+        "0": 0.5,
+        "1": 0.5
+      },
+      "blochVectorsBefore": [
+        [
+          0.0,
+          0.0,
+          1.0
+        ]
+      ],
+      "blochVectorsAfter": [
+        [
+          1.0,
+          0.0,
+          0.0
+        ]
+      ],
+      "explanation": "Hadamard gate creates a superposition state on qubit 0. It equally combines |0\u27e9 and |1\u27e9 states."
+    }
+  ],
+  "totalSteps": 1,
+  "qubitCount": 1,
+  "gateCount": 1,
+  "circuitDepth": 1,
+  "finalCounts": {
+    "0": 503,
+    "1": 521
+  },
+  "finalProbabilities": {
+    "0": 0.4912,
+    "1": 0.5088
+  },
+  "executionTimeMs": 285,
+  "executionTime": "285 ms"
+}

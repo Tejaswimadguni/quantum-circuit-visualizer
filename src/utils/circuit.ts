@@ -54,12 +54,26 @@ export type DemoCircuit = {
   entries: CircuitEntry[];
 };
 
+/** Resolve CNOT control/target for API payload (qubit = control wire where gate is placed). */
+export const resolveCnotWiring = (
+  entry: CircuitEntry,
+  qubitCount: number
+): { control: number; target: number } => {
+  if (entry.control !== undefined && entry.target !== undefined) {
+    return { control: entry.control, target: entry.target };
+  }
+  const control = entry.qubit;
+  const target =
+    entry.target ?? (control < qubitCount - 1 ? control + 1 : Math.max(0, control - 1));
+  return { control, target };
+};
+
 export const demoCircuits: Record<string, DemoCircuit> = {
   bell: {
     qubits: ['q0', 'q1'],
     entries: [
       { gate: 'H', qubit: 0, column: 0 },
-      { gate: 'CNOT', qubit: 1, column: 1 },
+      { gate: 'CNOT', control: 0, target: 1, column: 1, qubit: 0 },
     ],
   },
   superposition: {
@@ -74,8 +88,8 @@ export const demoCircuits: Record<string, DemoCircuit> = {
     qubits: ['q0', 'q1', 'q2'],
     entries: [
       { gate: 'H', qubit: 0, column: 0 },
-      { gate: 'CNOT', qubit: 1, column: 1 },
-      { gate: 'CNOT', qubit: 2, column: 2 },
+      { gate: 'CNOT', control: 0, target: 1, column: 1, qubit: 0 },
+      { gate: 'CNOT', control: 1, target: 2, column: 2, qubit: 1 },
     ],
   },
 };

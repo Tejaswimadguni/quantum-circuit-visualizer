@@ -17,6 +17,10 @@ function blochFromProbabilities(probabilities: Record<string, number>, qubitInde
   return [0, 0, z];
 }
 
+function vectorNorm([x, y, z]: BlochVector): number {
+  return Math.sqrt(x * x + y * y + z * z);
+}
+
 export function buildBlochQubitStates(
   qubitCount: number,
   probabilitiesAfter: Record<string, number>,
@@ -33,12 +37,14 @@ export function buildBlochQubitStates(
 
     const p0 = marginalProbabilityZero(probabilitiesAfter, index);
     const p1 = Math.max(0, 1 - p0);
+    const isMixed = vectorNorm(vector) < 0.05;
 
     return {
-      label,
+      label: isMixed ? `${label} (entangled)` : label,
       probabilityZero: p0,
       probabilityOne: p1,
       vector,
+      isMixed,
       color: BLOCH_COLORS[index % BLOCH_COLORS.length],
     };
   });

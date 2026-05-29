@@ -46,8 +46,8 @@ export default function TimelineView({ steps, currentStep, onStepClick }: Timeli
               }`}
             >
               {step.gate}
-              {step.control !== undefined && (
-                <span className="ml-1 text-xs">({step.control},{step.target})</span>
+              {step.control !== undefined && step.target !== undefined && (
+                <span className="ml-1 text-xs">q{step.control}→q{step.target}</span>
               )}
               {step.qubit !== undefined && step.control === undefined && (
                 <span className="ml-1 text-xs">(q{step.qubit})</span>

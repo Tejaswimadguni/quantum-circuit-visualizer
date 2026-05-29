@@ -1,0 +1,4 @@
+Bell CNOT pipeline verification
+Broken demo API payload: [{"gate": "H", "qubit": 0, "column": 0}, {"gate": "CNOT", "control": 1, "target": 0, "column": 1}]
+Fixed demo API payload:   [{"gate": "H", "qubit": 0, "column": 0}, {"gate": "CNOT", "control": 0, "target": 1, "column": 1}]
+Confirmed: reversed CNOT(1,0) fails Bell check (as expected)
