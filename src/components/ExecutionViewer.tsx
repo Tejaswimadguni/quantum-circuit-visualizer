@@ -9,6 +9,7 @@ import ProbabilityPanel from './ExecutionViewer/ProbabilityPanel';
 import ExplanationPanel from './ExecutionViewer/ExplanationPanel';
 import ExecutionReport from './ExecutionViewer/ExecutionReport';
 import BlochSphere from './BlochSphere';
+import { buildBlochQubitStates } from '../utils/bloch';
 
 export type ExecutionStep = {
   stepNumber: number;
@@ -21,6 +22,7 @@ export type ExecutionStep = {
   stateAfter: string;
   probabilitiesBefore: Record<string, number>;
   probabilitiesAfter: Record<string, number>;
+  blochVectorsAfter?: [number, number, number][];
   explanation: string;
 };
 
@@ -44,10 +46,11 @@ export default function ExecutionViewer() {
   const executionData: ExecutionData | null = location.state?.executionData || null;
 
   const [currentStep, setCurrentStep] = useState(0);
-  const [isPlaying, setIsPlaying] = useState(false);
+  const [isPlaying, setIsPlaying] = useState(() => location.state?.autoPlay !== false);
   const [playbackSpeed, setPlaybackSpeed] = useState(1);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [showReport, setShowReport] = useState(false);
+  const hasStartedPlayback = useRef(false);
 
   useEffect(() => {
     if (!executionData) {
@@ -55,6 +58,19 @@ export default function ExecutionViewer() {
       return;
     }
   }, [executionData, navigate]);
+
+  // Auto-start playback when execution data loads (Run Simulation / View Execution)
+  useEffect(() => {
+    if (!executionData?.steps.length || hasStartedPlayback.current) {
+      return;
+    }
+    hasStartedPlayback.current = true;
+    if (location.state?.autoPlay !== false) {
+      setCurrentStep(0);
+      setShowReport(false);
+      setIsPlaying(true);
+    }
+  }, [executionData, location.state?.autoPlay]);
 
   useEffect(() => {
     const handleFullscreenChange = () => {
@@ -106,29 +122,12 @@ export default function ExecutionViewer() {
   const blochStates = useMemo(() => {
     if (!executionData) return [];
 
-    const probs = currentStepData?.probabilitiesAfter || {};
-    const qubits = Array.from({ length: executionData.qubitCount }, (_, i) => `q${i}`);
-
-    return qubits.map((label, index) => {
-      const p0 = Object.entries(probs).reduce((sum, [state, prob]) => {
-        const bit = state[state.length - 1 - index] ?? '0';
-        return sum + (bit === '0' ? prob : 0);
-      }, 0) || 0.5;
-
-      const p1 = 1 - p0;
-      const z = Math.min(1, Math.max(-1, p0 - p1));
-      const theta = Math.acos(z);
-      const phi = index * 1.7 + Math.PI / 4;
-
-      return {
-        label,
-        probabilityZero: p0,
-        probabilityOne: p1,
-        vector: [Math.sin(theta) * Math.cos(phi), Math.sin(theta) * Math.sin(phi), z] as [number, number, number],
-        color: ['#5eead4', '#f472b6', '#7c3aed', '#22d3ee'][index % 4],
-      };
-    });
-  }, [executionData, currentStepData]);
+    return buildBlochQubitStates(
+      executionData.qubitCount,
+      currentStepData?.probabilitiesAfter ?? {},
+      currentStepData?.blochVectorsAfter
+    );
+  }, [executionData, currentStepData, currentStep]);
 
   if (!executionData) {
     return (
@@ -141,15 +140,23 @@ export default function ExecutionViewer() {
   }
 
   const handlePrevious = () => {
+    setShowReport(false);
     setCurrentStep(Math.max(0, currentStep - 1));
     setIsPlaying(false);
   };
 
   const handleNext = () => {
+    setShowReport(false);
     if (currentStep < executionData.totalSteps - 1) {
       setCurrentStep(currentStep + 1);
       setIsPlaying(false);
     }
+  };
+
+  const handleTimelineStep = (stepIndex: number) => {
+    setShowReport(false);
+    setCurrentStep(stepIndex);
+    setIsPlaying(false);
   };
 
   const handleReplay = () => {
@@ -201,13 +208,13 @@ export default function ExecutionViewer() {
             <TimelineView
               steps={executionData.steps}
               currentStep={currentStep}
-              onStepClick={setCurrentStep}
+              onStepClick={handleTimelineStep}
             />
           </div>
 
           {/* Bloch Visualization (col 2) - span the same row block as the left column items on xl */}
           <div className="min-w-0 xl:row-span-4 h-full">
-            <BlochSphere qubitStates={blochStates} loading={false} />
+            <BlochSphere key={currentStep} qubitStates={blochStates} loading={false} />
           </div>
 
           {/* Playback Controls (col 3) - independent card, spans rows */}
@@ -216,6 +223,7 @@ export default function ExecutionViewer() {
               isPlaying={isPlaying}
               currentStep={currentStep}
               totalSteps={executionData.totalSteps}
+              executionTime={executionData.executionTime}
               playbackSpeed={playbackSpeed}
               onPlayPause={() => setIsPlaying(!isPlaying)}
               onPrevious={handlePrevious}

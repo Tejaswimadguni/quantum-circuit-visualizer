@@ -17,6 +17,10 @@ export default function ProbabilityPanel({
     .sort(([, a], [, b]) => b - a)
     .slice(0, 4);
 
+  const emptyMessage = (
+    <p className="text-sm text-slate-500 italic">No probability data for this step.</p>
+  );
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
@@ -33,7 +37,9 @@ export default function ProbabilityPanel({
             Before Execution
           </p>
           <div className="space-y-3">
-            {sortedBefore.map(([state, prob], idx) => (
+            {sortedBefore.length === 0
+              ? emptyMessage
+              : sortedBefore.map(([state, prob], idx) => (
               <motion.div
                 key={state}
                 initial={{ opacity: 0, x: -20 }}
@@ -68,7 +74,9 @@ export default function ProbabilityPanel({
             After Execution
           </p>
           <div className="space-y-3">
-            {sortedAfter.map(([state, prob], idx) => (
+            {sortedAfter.length === 0
+              ? emptyMessage
+              : sortedAfter.map(([state, prob], idx) => (
               <motion.div
                 key={state}
                 initial={{ opacity: 0, x: 20 }}

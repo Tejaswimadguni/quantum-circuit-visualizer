@@ -243,93 +243,65 @@ export default function SimulatorPage({ showToast }: { showToast: (message: stri
     });
   };
 
+  const runSimulationWithSteps = async (options: { navigateToViewer: boolean }) => {
+    const payload = buildApiPayload();
+    const startTime = performance.now();
+
+    const response = await fetch(`${API_BASE_URL}/simulate-with-steps`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+
+    const endTime = performance.now();
+    const wallClockMs = Math.round(endTime - startTime);
+    const json = await response.json();
+
+    if (!response.ok) {
+      throw new Error(json.error || 'Simulation failed.');
+    }
+
+    const executionTimeMs =
+      typeof json.executionTimeMs === 'number' ? json.executionTimeMs : wallClockMs;
+    const executionTime =
+      typeof json.executionTime === 'string' ? json.executionTime : `${executionTimeMs} ms`;
+
+    setRequestTimeMs(executionTimeMs);
+    setServerCounts(json.finalCounts || null);
+    setServerProbabilities(json.finalProbabilities || null);
+    setBackendConnected(true);
+    setBackendStatusMessage('Backend connected');
+
+    const executionData = {
+      ...json,
+      executionTimeMs,
+      executionTime,
+      circuitEntries,
+    };
+
+    if (options.navigateToViewer) {
+      navigate('/execution', {
+        state: {
+          executionData,
+          autoPlay: true,
+        },
+      });
+    }
+
+    return executionData;
+  };
+
   const executeBackendSimulation = async () => {
-    console.log('STEP 1: executeBackendSimulation entered');
     setServerError(null);
     setServerCounts(null);
     setServerProbabilities(null);
     setRequestTimeMs(null);
     setIsLoading(true);
 
-    const payload = buildApiPayload();
-    console.log('STEP 1: built payload', JSON.stringify(payload));
-
-    const startTime = performance.now();
-
     try {
-      console.log('STEP 1: sending backend request');
-      const response = await fetch(`${API_BASE_URL}/simulate`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      });
-
-      console.log('STEP 2: backend response received', response.status, response.statusText);
-      const endTime = performance.now();
-      setRequestTimeMs(Math.round(endTime - startTime));
-
-      console.log('STEP 3: parsing backend JSON');
-      const json = await response.json();
-      console.log('STEP 3: parsed JSON', JSON.stringify(json));
-
-      if (!response.ok) {
-        console.log('STEP 3x: response not OK, throwing');
-        throw new Error(json.error || 'Backend simulation failed.');
-      }
-
-      console.log('STEP 4: before state updates');
-      setServerCounts(json.counts || null);
-      setServerProbabilities(json.probabilities || null);
-      pushLog('Backend simulation returned successfully.');
-      setBackendConnected(true);
-      setBackendStatusMessage('Backend connected');
-      // Build executionData to pass to ExecutionViewer and navigate
-      try {
-        const steps = executionSequence.map((entry, idx) => ({
-          stepNumber: idx,
-          gate: entry.gate,
-          qubit: entry.qubit,
-          control: (entry as any).control ?? undefined,
-          target: (entry as any).target ?? undefined,
-          column: entry.column,
-          stateBefore: '',
-          stateAfter: '',
-          probabilitiesBefore: {},
-          probabilitiesAfter: json.probabilities || {},
-          explanation: '',
-        }));
-
-        const executionData = {
-          steps: steps.length ? steps : [
-            {
-              stepNumber: 0,
-              gate: 'RESULT',
-              column: 0,
-              stateBefore: '',
-              stateAfter: '',
-              probabilitiesBefore: {},
-              probabilitiesAfter: json.probabilities || {},
-              explanation: 'Final result',
-            },
-          ],
-          totalSteps: steps.length || 1,
-          qubitCount: qubits.length,
-          gateCount,
-          circuitDepth,
-          finalCounts: json.counts || {},
-          finalProbabilities: json.probabilities || {},
-          executionTime: requestTimeMs !== null ? `${requestTimeMs} ms` : 'Pending',
-          circuitEntries,
-        };
-
-        console.log('STEP NAV: navigating to /execution with executionData');
-        navigate('/execution', { state: { executionData } });
-      } catch (navError) {
-        console.error('Navigation to ExecutionViewer failed', navError);
-      }
-      console.log('STEP 5: after state updates');
+      await runSimulationWithSteps({ navigateToViewer: true });
+      pushLog('Simulation completed with step-by-step execution history.');
     } catch (error) {
-      console.error('RUN SIMULATION FAILED', error);
       const message = error instanceof Error ? error.message : 'Backend error occurred.';
       setServerError(message);
       pushLog(`Backend simulation error: ${message}`);
@@ -337,7 +309,6 @@ export default function SimulatorPage({ showToast }: { showToast: (message: stri
       setBackendConnected(false);
       setBackendStatusMessage('Backend unavailable');
     } finally {
-      console.log('STEP 6: finally clearing isLoading');
       setIsLoading(false);
     }
   };
@@ -351,37 +322,12 @@ export default function SimulatorPage({ showToast }: { showToast: (message: stri
       showToast('Add at least one gate before viewing execution.');
       return;
     }
+
     setIsLoadingStepExecution(true);
-    const startTime = performance.now();
 
     try {
-      const response = await fetch(`${API_BASE_URL}/simulate-with-steps`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(buildApiPayload()),
-      });
-
-      const endTime = performance.now();
-      const responseTime = Math.round(endTime - startTime);
-
-      const json = await response.json();
-      if (!response.ok) {
-        throw new Error(json.error || 'Step-by-step simulation failed.');
-      }
-
+      await runSimulationWithSteps({ navigateToViewer: true });
       pushLog('Step-by-step simulation generated successfully.');
-      setBackendConnected(true);
-      setBackendStatusMessage('Backend connected');
-
-      // Navigate to ExecutionViewer with the execution data
-      navigate('/execution', {
-        state: {
-          executionData: {
-            ...json,
-            circuitEntries,
-          },
-        },
-      });
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Backend error occurred.';
       setServerError(message);
@@ -493,39 +439,22 @@ export default function SimulatorPage({ showToast }: { showToast: (message: stri
     showToast(`${demoName.charAt(0).toUpperCase() + demoName.slice(1)} demo loaded.`);
   };
 
-const runSimulation = async () => {
-  console.log('STEP 0: runSimulation entered');
-  console.log('STEP 0a: isLoading =', isLoading);
-  console.log('STEP 0b: gateCount =', gateCount);
+  const runSimulation = async () => {
+    if (isLoading) {
+      return;
+    }
 
-  if (isLoading) {
-    console.log('STEP 0x: STOPPED, simulation already running');
-    return;
-  }
+    if (gateCount === 0) {
+      showToast('Add at least one gate before simulating.');
+      return;
+    }
 
-  if (gateCount === 0) {
-    console.log('STEP 0x: STOPPED, no gates in circuit');
-    showToast('Add at least one gate before simulating.');
-    return;
-  }
+    setModalOpen(true);
+    pushLog('Submitting circuit to backend.');
+    showToast('Running backend simulation.');
 
-  console.log('STEP 0: PASSED VALIDATION');
-
-  console.log('STEP 1: preparing modal and backend request');
-  setModalOpen(true);
-  pushLog('Submitting circuit to backend.');
-  showToast('Running backend simulation.');
-
-  try {
-    console.log('STEP 2: calling executeBackendSimulation');
     await executeBackendSimulation();
-    console.log('STEP 2: executeBackendSimulation returned successfully');
-  } catch (error) {
-    console.error('RUN SIMULATION FAILED during executeBackendSimulation', error);
-    throw error;
-  }
-  console.log('STEP 3: runSimulation completed');
-};
+  };
 
   const clearSelection = () => {
     setSelectedGate(null);

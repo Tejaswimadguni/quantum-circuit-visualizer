@@ -1,4 +1,5 @@
 from typing import Any, Dict, List, Tuple
+import time
 import numpy as np
 
 from qiskit import QuantumCircuit, transpile
@@ -162,10 +163,79 @@ def _get_probabilities_from_statevector(statevector: np.ndarray) -> Dict[str, fl
     return probabilities
 
 
+def _statevector_array(statevector: Any) -> np.ndarray:
+    """Normalize Statevector or ndarray to a complex amplitude array."""
+    if isinstance(statevector, Statevector):
+        return statevector.data
+    return np.asarray(statevector, dtype=complex)
+
+
+def _get_bloch_vectors_from_statevector(statevector: Any, n_qubits: int) -> List[List[float]]:
+    """Compute Bloch [x, y, z] for each qubit via partial trace of |ψ⟩⟨ψ|."""
+    sv = _statevector_array(statevector)
+    dim = len(sv)
+    vectors: List[List[float]] = []
+
+    for q in range(n_qubits):
+        rho = np.zeros((2, 2), dtype=complex)
+        for i in range(dim):
+            for j in range(dim):
+                other_bits_match = True
+                for k in range(n_qubits):
+                    if k == q:
+                        continue
+                    if ((i >> (n_qubits - 1 - k)) & 1) != ((j >> (n_qubits - 1 - k)) & 1):
+                        other_bits_match = False
+                        break
+                if not other_bits_match:
+                    continue
+                iq = (i >> (n_qubits - 1 - q)) & 1
+                jq = (j >> (n_qubits - 1 - q)) & 1
+                rho[iq, jq] += sv[i] * np.conj(sv[j])
+
+        x = float(2 * np.real(rho[0, 1]))
+        y = float(2 * np.imag(rho[0, 1]))
+        z = float(np.real(rho[0, 0] - rho[1, 1]))
+        norm = float(np.sqrt(x * x + y * y + z * z))
+        if norm > 1e-10:
+            x, y, z = x / norm, y / norm, z / norm
+        else:
+            x, y, z = 0.0, 0.0, 1.0
+        vectors.append([round(x, 4), round(y, 4), round(z, 4)])
+
+    return vectors
+
+
+def _get_bloch_vectors_from_probabilities(probabilities: Dict[str, float], n_qubits: int) -> List[List[float]]:
+    """Bloch Z component from measurement probabilities (diagonal reduced state)."""
+    vectors: List[List[float]] = []
+    for q in range(n_qubits):
+        p0 = sum(
+            prob for state, prob in probabilities.items()
+            if len(state) > q and state[len(state) - 1 - q] == '0'
+        )
+        p1 = max(0.0, 1.0 - p0)
+        z = max(-1.0, min(1.0, p0 - p1))
+        vectors.append([0.0, 0.0, round(z, 4)])
+    return vectors
+
+
+def _bloch_vectors_for_step(
+    statevector: Any, probabilities: Dict[str, float], n_qubits: int
+) -> List[List[float]]:
+    """Derive per-qubit Bloch coordinates from statevector or probability data."""
+    if isinstance(statevector, (Statevector, np.ndarray)):
+        return _get_bloch_vectors_from_statevector(statevector, n_qubits)
+    if probabilities:
+        return _get_bloch_vectors_from_probabilities(probabilities, n_qubits)
+    return [[0.0, 0.0, 1.0] for _ in range(n_qubits)]
+
+
 def run_quantum_simulation_with_steps(
     entries: List[Dict[str, Any]], shots: int = 1024
 ) -> Dict[str, Any]:
     """Execute circuit step-by-step, returning execution history and final results."""
+    start_time = time.perf_counter()
     normalized_entries = [_validate_entry(entry) for entry in entries]
     normalized_entries.sort(key=lambda item: (item['column'], item.get('qubit', 0), item.get('control', 0)))
 
@@ -259,6 +329,8 @@ def run_quantum_simulation_with_steps(
             state_after = _format_statevector(current_statevector)
             probs_after = _get_probabilities_from_statevector(current_statevector)
 
+        bloch_after = _bloch_vectors_for_step(current_statevector, probs_after, qubit_count)
+
         # Build step data
         step = {
             'stepNumber': len(steps) + 1,
@@ -271,6 +343,7 @@ def run_quantum_simulation_with_steps(
             'stateAfter': state_after,
             'probabilitiesBefore': probs_before,
             'probabilitiesAfter': probs_after,
+            'blochVectorsAfter': bloch_after,
             'explanation': _get_gate_explanation(
                 gate,
                 entry.get('qubit'),
@@ -314,6 +387,8 @@ def run_quantum_simulation_with_steps(
         for state, count in counts.items()
     }
 
+    elapsed_ms = round((time.perf_counter() - start_time) * 1000)
+
     return {
         'steps': steps,
         'totalSteps': len(steps),
@@ -322,6 +397,7 @@ def run_quantum_simulation_with_steps(
         'circuitDepth': max([e['column'] for e in normalized_entries]) + 1 if normalized_entries else 0,
         'finalCounts': counts,
         'finalProbabilities': probabilities,
-        'executionTime': f'{len(steps) * 10} ms',
+        'executionTimeMs': elapsed_ms,
+        'executionTime': f'{elapsed_ms} ms',
     }
 

@@ -4,6 +4,7 @@ interface PlaybackControlsProps {
   isPlaying: boolean;
   currentStep: number;
   totalSteps: number;
+  executionTime: string;
   playbackSpeed: number;
   onPlayPause: () => void;
   onPrevious: () => void;
@@ -17,6 +18,7 @@ export default function PlaybackControls({
   isPlaying,
   currentStep,
   totalSteps,
+  executionTime,
   playbackSpeed,
   onPlayPause,
   onPrevious,
@@ -40,6 +42,11 @@ export default function PlaybackControls({
         <p className="text-3xl font-bold text-cyan-400">
           {currentStep + 1} / {totalSteps}
         </p>
+      </div>
+
+      <div className="text-center rounded-lg border border-slate-700/50 bg-slate-800/30 px-3 py-2">
+        <p className="text-xs text-slate-400 uppercase tracking-wider">Execution Time</p>
+        <p className="text-lg font-semibold text-slate-100">{executionTime}</p>
       </div>
 
       {/* Main Controls */}
