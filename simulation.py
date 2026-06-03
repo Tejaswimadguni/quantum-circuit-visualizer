@@ -6,7 +6,7 @@ from qiskit import QuantumCircuit, transpile
 from qiskit_aer import AerSimulator
 from qiskit.quantum_info import Statevector
 
-SUPPORTED_GATES = {'H', 'X', 'Y', 'Z', 'CNOT', 'MEASURE'}
+SUPPORTED_GATES = {'H', 'X', 'Y', 'Z', 'CNOT', 'CZ', 'SWAP', 'RZ', 'CP', 'MEASURE'}
 
 
 class SimulationError(Exception):
@@ -32,14 +32,33 @@ def _validate_entry(entry: Any) -> Dict[str, Any]:
 
     normalized = {'gate': gate, 'column': column}
 
-    if gate == 'CNOT':
+    if gate in {'CNOT', 'CZ', 'SWAP'}:
         control = entry.get('control')
         target = entry.get('target')
         if not isinstance(control, int) or not isinstance(target, int):
-            raise SimulationError('CNOT entries must include integer control and target fields.')
+            raise SimulationError(f'{gate} entries must include integer control and target fields.')
         if control == target:
-            raise SimulationError('CNOT control and target must be different qubits.')
+            raise SimulationError(f'{gate} control and target must be different qubits.')
         normalized.update({'control': control, 'target': target})
+    elif gate == 'CP':
+        control = entry.get('control')
+        target = entry.get('target')
+        angle = entry.get('angle')
+        if not isinstance(control, int) or not isinstance(target, int):
+            raise SimulationError('CP entries must include integer control and target fields.')
+        if control == target:
+            raise SimulationError('CP control and target must be different qubits.')
+        if not isinstance(angle, (int, float)):
+            raise SimulationError('CP entries must include a numeric angle.')
+        normalized.update({'control': control, 'target': target, 'angle': float(angle)})
+    elif gate == 'RZ':
+        qubit = entry.get('qubit')
+        angle = entry.get('angle')
+        if not isinstance(qubit, int) or qubit < 0:
+            raise SimulationError('RZ entries must include a non-negative integer qubit.')
+        if not isinstance(angle, (int, float)):
+            raise SimulationError('RZ entries must include a numeric angle.')
+        normalized.update({'qubit': qubit, 'angle': float(angle)})
     else:
         qubit = entry.get('qubit')
         if not isinstance(qubit, int) or qubit < 0:
@@ -53,7 +72,9 @@ def _get_qubit_count(entries: List[Dict[str, Any]]) -> int:
     """Return the minimum number of qubits required by the circuit."""
     highest_index = 0
     for entry in entries:
-        if entry['gate'] == 'CNOT':
+        if entry['gate'] in {'CNOT', 'CZ', 'SWAP'}:
+            highest_index = max(highest_index, entry['control'], entry['target'])
+        elif entry['gate'] in {'CP'}:
             highest_index = max(highest_index, entry['control'], entry['target'])
         else:
             highest_index = max(highest_index, entry['qubit'])
@@ -73,6 +94,14 @@ def build_quantum_circuit(entries: List[Any]) -> QuantumCircuit:
         gate = entry['gate']
         if gate == 'CNOT':
             circuit.cx(entry['control'], entry['target'])
+        elif gate == 'CZ':
+            circuit.cz(entry['control'], entry['target'])
+        elif gate == 'SWAP':
+            circuit.swap(entry['control'], entry['target'])
+        elif gate == 'CP':
+            circuit.cp(entry['angle'], entry['control'], entry['target'])
+        elif gate == 'RZ':
+            circuit.rz(entry['angle'], entry['qubit'])
         elif gate == 'MEASURE':
             circuit.measure(entry['qubit'], entry['qubit'])
             measured_qubits.add(entry['qubit'])
@@ -120,7 +149,13 @@ def run_quantum_simulation(circuit: QuantumCircuit, shots: int = 1024) -> Tuple[
 # ============================================================================
 
 
-def _get_gate_explanation(gate: str, qubit: int = None, control: int = None, target: int = None) -> str:
+def _get_gate_explanation(
+    gate: str,
+    qubit: int = None,
+    control: int = None,
+    target: int = None,
+    angle: float = None,
+) -> str:
     """Generate educational explanation for a quantum gate."""
     explanations = {
         'H': f'Hadamard gate creates a superposition state on qubit {qubit}. It equally combines |0⟩ and |1⟩ states.',
@@ -128,6 +163,10 @@ def _get_gate_explanation(gate: str, qubit: int = None, control: int = None, tar
         'Y': f'Pauli-Y gate applies a bit flip and phase shift on qubit {qubit}.',
         'Z': f'Pauli-Z (Phase) gate leaves |0⟩ unchanged and flips the phase of |1⟩ on qubit {qubit}.',
         'CNOT': f'CNOT gate entangles qubits {control} (control) and {target} (target). Flips target when control is |1⟩.',
+        'CZ': f'CZ gate applies a controlled-Z phase between qubit {control} and qubit {target}.',
+        'SWAP': f'SWAP gate exchanges the states of qubits {control} and {target}.',
+        'RZ': f'RZ gate rotates qubit {qubit} around the Z axis by angle {angle}.',
+        'CP': f'CP gate applies a controlled phase of {angle} from qubit {control} to {target}.',
         'MEASURE': f'Measurement gate collapses qubit {qubit} into a classical bit (0 or 1).',
     }
     return explanations.get(gate, f'Unknown gate: {gate}')
@@ -277,6 +316,14 @@ def run_quantum_simulation_with_steps(
         # Apply gate
         if gate == 'CNOT':
             current_circuit.cx(entry['control'], entry['target'])
+        elif gate == 'CZ':
+            current_circuit.cz(entry['control'], entry['target'])
+        elif gate == 'SWAP':
+            current_circuit.swap(entry['control'], entry['target'])
+        elif gate == 'CP':
+            current_circuit.cp(entry['angle'], entry['control'], entry['target'])
+        elif gate == 'RZ':
+            current_circuit.rz(entry['angle'], entry['qubit'])
         elif gate == 'MEASURE':
             current_circuit.measure(entry['qubit'], entry['qubit'])
             measured_qubits.add(entry['qubit'])
@@ -359,7 +406,8 @@ def run_quantum_simulation_with_steps(
                 gate,
                 entry.get('qubit'),
                 entry.get('control'),
-                entry.get('target')
+                entry.get('target'),
+                entry.get('angle'),
             ),
         }
         steps.append(step)
@@ -370,6 +418,14 @@ def run_quantum_simulation_with_steps(
         gate = entry['gate']
         if gate == 'CNOT':
             final_circuit.cx(entry['control'], entry['target'])
+        elif gate == 'CZ':
+            final_circuit.cz(entry['control'], entry['target'])
+        elif gate == 'SWAP':
+            final_circuit.swap(entry['control'], entry['target'])
+        elif gate == 'CP':
+            final_circuit.cp(entry['angle'], entry['control'], entry['target'])
+        elif gate == 'RZ':
+            final_circuit.rz(entry['angle'], entry['qubit'])
         elif gate == 'MEASURE':
             final_circuit.measure(entry['qubit'], entry['qubit'])
         elif gate == 'H':

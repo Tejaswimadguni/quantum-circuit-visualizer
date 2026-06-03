@@ -232,13 +232,32 @@ export default function SimulatorPage({ showToast }: { showToast: (message: stri
 
   const buildApiPayload = () => {
     return circuitEntries.map((entry) => {
-      if (entry.gate === 'CNOT') {
+      if (entry.gate === 'CNOT' || entry.gate === 'CZ' || entry.gate === 'SWAP') {
         const { control, target } = resolveCnotWiring(entry, qubits.length);
         return {
-          gate: 'CNOT',
+          gate: entry.gate,
           control,
           target,
           column: entry.column,
+        };
+      }
+
+      if (entry.gate === 'RZ') {
+        return {
+          gate: 'RZ',
+          qubit: entry.qubit,
+          column: entry.column,
+          angle: entry.angle,
+        };
+      }
+
+      if (entry.gate === 'CP') {
+        return {
+          gate: 'CP',
+          control: entry.control,
+          target: entry.target,
+          column: entry.column,
+          angle: entry.angle,
         };
       }
 
@@ -363,10 +382,19 @@ export default function SimulatorPage({ showToast }: { showToast: (message: stri
 
   const placeOrRemoveGate = (row: number, column: number) => {
     setSelectedCell({ row, column });
-    const existing = circuitEntries.find((entry) => entry.qubit === row && entry.column === column);
+    const existing = circuitEntries.find(
+      (entry) =>
+        entry.column === column &&
+        (entry.qubit === row || entry.control === row || entry.target === row)
+    );
 
     if (existing) {
-      updateCircuitEntries(circuitEntries.filter((entry) => !(entry.qubit === row && entry.column === column)));
+      updateCircuitEntries(
+        circuitEntries.filter(
+          (entry) =>
+            !(entry.column === column && (entry.qubit === row || entry.control === row || entry.target === row))
+        )
+      );
       pushLog(`Removed ${existing.gate} from q${row} column ${column + 1}.`);
       showToast('Gate removed.');
       return;
@@ -377,9 +405,9 @@ export default function SimulatorPage({ showToast }: { showToast: (message: stri
       return;
     }
 
-    if (selectedGate === 'CNOT') {
+    if (selectedGate === 'CNOT' || selectedGate === 'CZ' || selectedGate === 'SWAP') {
       if (qubits.length < 2) {
-        showToast('CNOT requires at least two qubits.');
+        showToast(`${selectedGate} requires at least two qubits.`);
         return;
       }
 
@@ -387,15 +415,20 @@ export default function SimulatorPage({ showToast }: { showToast: (message: stri
       updateCircuitEntries([
         ...circuitEntries,
         {
-          gate: 'CNOT',
+          gate: selectedGate,
           qubit: row,
           column,
           control: row,
           target,
         },
       ]);
-      pushLog(`Placed CNOT with control q${row} and target q${target} at column ${column + 1}.`);
-      showToast('CNOT gate placed.');
+      pushLog(`Placed ${selectedGate} with control q${row} and target q${target} at column ${column + 1}.`);
+      showToast(`${selectedGate} gate placed.`);
+      return;
+    }
+
+    if (selectedGate === 'RZ' || selectedGate === 'CP') {
+      showToast('RZ and CP gates are only available through the Quantum Algorithm Library.');
       return;
     }
 
@@ -770,6 +803,7 @@ export default function SimulatorPage({ showToast }: { showToast: (message: stri
           <SimulatorGrid
             qubits={qubits}
             grid={grid}
+            entries={circuitEntries}
             selectedCell={selectedCell}
             selectedGate={selectedGate}
             onCellClick={placeOrRemoveGate}

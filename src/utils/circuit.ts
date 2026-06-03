@@ -4,6 +4,7 @@ export type CircuitEntry = {
   column: number;
   control?: number;
   target?: number;
+  angle?: number;
 };
 
 export type CircuitJson = {
@@ -18,14 +19,46 @@ export const MAX_COLUMNS = 7;
 
 export const createCircuitEntries = (rows: number): CircuitEntry[] => [];
 
+const formatAngleLabel = (angle: number) => {
+  if (Number.isInteger(angle)) {
+    return angle.toString();
+  }
+  return angle.toPrecision(3).replace(/(?:\.0+|(?<=\.\d*?)0+)$/, '');
+};
+
 export const buildGrid = (entries: CircuitEntry[], rows: number, columns = MAX_COLUMNS) => {
   const grid: Array<Array<string | null>> = Array.from({ length: rows }, () =>
     Array.from({ length: columns }, () => null)
   );
 
   entries.forEach((entry) => {
-    if (entry.qubit < rows && entry.column < columns) {
-      grid[entry.qubit][entry.column] = entry.gate;
+    if (entry.column >= columns) {
+      return;
+    }
+
+    const label =
+      entry.gate === 'RZ' && entry.angle !== undefined
+        ? `RZ(${formatAngleLabel(entry.angle)})`
+        : entry.gate === 'CP' && entry.angle !== undefined
+        ? `CP(${formatAngleLabel(entry.angle)})`
+        : entry.gate;
+
+    if (
+      (entry.gate === 'CNOT' || entry.gate === 'CZ' || entry.gate === 'SWAP' || entry.gate === 'CP') &&
+      entry.control !== undefined &&
+      entry.target !== undefined
+    ) {
+      if (entry.control < rows) {
+        grid[entry.control][entry.column] = label;
+      }
+      if (entry.target < rows) {
+        grid[entry.target][entry.column] = label;
+      }
+      return;
+    }
+
+    if (entry.qubit < rows) {
+      grid[entry.qubit][entry.column] = label;
     }
   });
 

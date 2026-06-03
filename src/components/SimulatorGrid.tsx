@@ -1,9 +1,11 @@
 import { motion } from 'framer-motion';
 import { gateAccentClasses } from '../constants/gates';
+import type { CircuitEntry } from '../utils/circuit';
 
 type SimulatorGridProps = {
   qubits: string[];
   grid: Array<Array<string | null>>;
+  entries: CircuitEntry[];
   selectedCell: { row: number; column: number } | null;
   selectedGate: string | null;
   onCellClick: (row: number, column: number) => void;
@@ -16,6 +18,7 @@ type SimulatorGridProps = {
 export default function SimulatorGrid({
   qubits,
   grid,
+  entries,
   selectedCell,
   selectedGate,
   onCellClick,
@@ -72,7 +75,24 @@ export default function SimulatorGrid({
               {row.map((cell, colIndex) => {
                 const isSelected = selectedCell?.row === rowIndex && selectedCell.column === colIndex;
                 const isExecuting = executingCell?.row === rowIndex && executingCell.column === colIndex;
-                const cellAccent = cell ? gateAccentClasses[cell] ?? 'from-cyan-400 to-blue-500' : 'from-white/5 to-white/5';
+                const entryAtCell = entries.find((entry) => entry.column === colIndex && (entry.qubit === rowIndex || entry.control === rowIndex || entry.target === rowIndex));
+                const baseGate = cell?.split('(')[0] ?? entryAtCell?.gate ?? null;
+                const cellAccent = baseGate ? gateAccentClasses[baseGate] ?? 'from-cyan-400 to-blue-500' : 'from-white/5 to-white/5';
+                const isControl = !!entryAtCell && entryAtCell.control === rowIndex && entryAtCell.target !== undefined;
+                const isTarget = !!entryAtCell && entryAtCell.target === rowIndex && entryAtCell.control !== undefined;
+                const renderedLabel = entryAtCell
+                  ? isControl && !isTarget
+                    ? '●'
+                    : isTarget && entryAtCell.gate === 'CNOT'
+                    ? '⊕'
+                    : isTarget && entryAtCell.gate === 'CZ'
+                    ? 'Z'
+                    : isTarget && entryAtCell.gate === 'SWAP'
+                    ? 'SWAP'
+                    : isTarget && entryAtCell.gate === 'CP'
+                    ? cell
+                    : cell || '+'
+                  : cell || '+';
 
                 return (
                   <motion.button
@@ -94,7 +114,7 @@ export default function SimulatorGrid({
                       <span className="absolute inset-0 rounded-[1.75rem] border border-cyan-300/30 bg-cyan-400/10 opacity-90 shadow-[0_0_30px_rgba(79,247,228,0.22)] animate-pulse-slow" />
                     )}
                     <span className="relative z-10 block truncate leading-5">
-                      {cell || '+'}
+                      {renderedLabel}
                     </span>
                     {cell && (
                       <span className="absolute inset-x-0 bottom-0 h-1 bg-gradient-to-r from-cyan-300 to-blue-500 opacity-80" />

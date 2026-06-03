@@ -120,6 +120,42 @@ const bernsteinVazirani: AlgorithmTemplate = {
   ],
 };
 
+const qft2: AlgorithmTemplate = {
+  id: 'qft2',
+  name: 'QFT 2Q',
+  category: 'Algorithms',
+  description: 'A two-qubit Quantum Fourier Transform using controlled phase rotations.',
+  difficulty: 'Intermediate',
+  requiredQubits: 2,
+  entries: [
+    { gate: 'H', qubit: 0, column: 0 },
+    { gate: 'CP', qubit: 0, control: 0, target: 1, column: 1, angle: Math.PI / 2 },
+    { gate: 'H', qubit: 1, column: 2 },
+    { gate: 'MEASURE', qubit: 0, column: 3 },
+    { gate: 'MEASURE', qubit: 1, column: 3 },
+  ],
+};
+
+const qft3: AlgorithmTemplate = {
+  id: 'qft3',
+  name: 'QFT 3Q',
+  category: 'Algorithms',
+  description: 'A three-qubit Quantum Fourier Transform using controlled phase rotations.',
+  difficulty: 'Advanced',
+  requiredQubits: 3,
+  entries: [
+    { gate: 'H', qubit: 0, column: 0 },
+    { gate: 'CP', qubit: 0, control: 0, target: 1, column: 1, angle: Math.PI / 2 },
+    { gate: 'CP', qubit: 0, control: 0, target: 2, column: 2, angle: Math.PI / 4 },
+    { gate: 'H', qubit: 1, column: 3 },
+    { gate: 'CP', qubit: 1, control: 1, target: 2, column: 4, angle: Math.PI / 2 },
+    { gate: 'H', qubit: 2, column: 5 },
+    { gate: 'MEASURE', qubit: 0, column: 6 },
+    { gate: 'MEASURE', qubit: 1, column: 6 },
+    { gate: 'MEASURE', qubit: 2, column: 6 },
+  ],
+};
+
 const simon: AlgorithmTemplate = {
   id: 'simon',
   name: 'Simon',
@@ -148,6 +184,8 @@ export const ALGORITHM_TEMPLATES: Record<string, AlgorithmTemplate> = {
   deutsch,
   deutschJozsa,
   bernsteinVazirani,
+  qft2,
+  qft3,
   simon,
 };
 
