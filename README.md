@@ -26,3 +26,17 @@ npm run dev
 - Dummy state vector, probability charts, and simulation logs
 - Toast notifications, modal dialogs, and animated transitions
 - Tailwind CSS styling and Framer Motion animations
+
+
+Supported Algorithms
+
+• Superposition
+• Bell State
+• Entanglement (GHZ)
+• Deutsch Algorithm
+• Deutsch–Jozsa Algorithm
+• Bernstein–Vazirani Algorithm
+• Simon's Algorithm
+• Grover Search (2Q Educational Demo)
+• Quantum Fourier Transform (2Q)
+• Quantum Fourier Transform (3Q)
