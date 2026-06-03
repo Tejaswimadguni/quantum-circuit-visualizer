@@ -156,6 +156,31 @@ const qft3: AlgorithmTemplate = {
   ],
 };
 
+const grover2Q: AlgorithmTemplate = {
+  id: 'grover2Q',
+  name: 'Grover Search (2Q)',
+  category: 'Algorithms',
+  description: 'Educational implementation of Grover\'s search algorithm over four states.',
+  difficulty: 'Advanced',
+  requiredQubits: 2,
+  entries: [
+    { gate: 'H', qubit: 0, column: 0 },
+    { gate: 'H', qubit: 1, column: 0 },
+    { gate: 'CZ', qubit: 0, control: 0, target: 1, column: 1 },
+    { gate: 'H', qubit: 0, column: 2 },
+    { gate: 'H', qubit: 1, column: 2 },
+    { gate: 'X', qubit: 0, column: 3 },
+    { gate: 'X', qubit: 1, column: 3 },
+    { gate: 'CZ', qubit: 0, control: 0, target: 1, column: 4 },
+    { gate: 'X', qubit: 0, column: 5 },
+    { gate: 'X', qubit: 1, column: 5 },
+    { gate: 'H', qubit: 0, column: 6 },
+    { gate: 'H', qubit: 1, column: 6 },
+    { gate: 'MEASURE', qubit: 0, column: 7 },
+    { gate: 'MEASURE', qubit: 1, column: 7 },
+  ],
+};
+
 const simon: AlgorithmTemplate = {
   id: 'simon',
   name: 'Simon',
@@ -186,6 +211,7 @@ export const ALGORITHM_TEMPLATES: Record<string, AlgorithmTemplate> = {
   bernsteinVazirani,
   qft2,
   qft3,
+  grover2Q,
   simon,
 };
 
