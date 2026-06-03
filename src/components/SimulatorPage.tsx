@@ -18,6 +18,10 @@ import {
   resolveCnotWiring,
   CircuitEntry,
 } from '../utils/circuit';
+import CircuitStatsPanel from './CircuitStatsPanel';
+import GateInfoPanel from './GateInfoPanel';
+import AlgorithmInfoPanel from './AlgorithmInfoPanel';
+import ExecutionSummaryPanel from './ExecutionSummaryPanel';
 import {
   ALGORITHM_TEMPLATES,
   AlgorithmTemplate,
@@ -48,6 +52,7 @@ export default function SimulatorPage({ showToast }: { showToast: (message: stri
   const [activeExecutionStep, setActiveExecutionStep] = useState<number>(-1);
   const [showBlochPanel, setShowBlochPanel] = useState(true);
   const [isLoadingStepExecution, setIsLoadingStepExecution] = useState(false);
+  const [currentAlgorithm, setCurrentAlgorithm] = useState<AlgorithmTemplate | null>(null);
 
   useEffect(() => {
     let isMounted = true;
@@ -101,6 +106,12 @@ export default function SimulatorPage({ showToast }: { showToast: (message: stri
       .sort(([, a], [, b]) => b - a)
       .map(([label, value]) => ({ label, value: Math.round(value * 100) }));
   }, [serverProbabilities]);
+
+  const measurementsCount = useMemo(() => circuitEntries.filter((e) => e.gate === 'MEASURE').length, [circuitEntries]);
+  const entanglingCount = useMemo(
+    () => circuitEntries.filter((e) => ['CNOT', 'CP', 'CZ', 'SWAP'].includes(e.gate)).length,
+    [circuitEntries]
+  );
   const measuredStateEntries = useMemo(() => {
     if (!serverCounts) {
       return [];
@@ -494,6 +505,7 @@ export default function SimulatorPage({ showToast }: { showToast: (message: stri
     setModalOpen(false);
     pushLog(`Loaded algorithm ${template.name}.`);
     showToast(`${template.name} loaded.`);
+    setCurrentAlgorithm(template);
   };
 
   useEffect(() => {
@@ -813,6 +825,21 @@ export default function SimulatorPage({ showToast }: { showToast: (message: stri
             executingCell={activeExecutionCell}
           />
 
+          <div className="mt-6 grid gap-4 lg:grid-cols-3">
+            <CircuitStatsPanel
+              qubits={qubits.length}
+              gateCount={gateCount}
+              circuitDepth={circuitDepth}
+              measurements={measurementsCount}
+              entangling={entanglingCount}
+            />
+            <GateInfoPanel
+              selectedGate={selectedGate}
+              focusedEntry={selectedCell ? circuitEntries.find((e) => e.column === selectedCell.column && (e.qubit === selectedCell.row || e.control === selectedCell.row || e.target === selectedCell.row)) : null}
+            />
+            <AlgorithmInfoPanel algorithm={currentAlgorithm} />
+          </div>
+
           {gateCount === 0 ? (
             <EmptyState />
           ) : (
@@ -916,12 +943,12 @@ export default function SimulatorPage({ showToast }: { showToast: (message: stri
                       </div>
                     ) : (
                       probabilityEntries.map((item) => (
-                        <div key={item.label} className="space-y-2">
+                        <div key={item.label} className="rounded-3xl border border-white/10 bg-[#05111e]/90 p-4">
                           <div className="flex items-center justify-between text-sm text-slate-300">
                             <span>{item.label}</span>
                             <span className="font-semibold text-white">{item.value}%</span>
                           </div>
-                          <div className="h-4 overflow-hidden rounded-full bg-white/5">
+                          <div className="h-4 overflow-hidden rounded-full bg-white/5 mt-2">
                             <motion.div
                               initial={{ width: 0 }}
                               animate={{ width: `${item.value}%` }}
@@ -982,6 +1009,9 @@ export default function SimulatorPage({ showToast }: { showToast: (message: stri
                     ))
                   )}
                 </div>
+                  <div className="mt-6">
+                    <ExecutionSummaryPanel finalCounts={serverCounts} finalProbabilities={serverProbabilities} />
+                  </div>
               </div>
 
               <div className="rounded-[2rem] border border-white/10 bg-[#06102e]/95 p-6 shadow-glow">
