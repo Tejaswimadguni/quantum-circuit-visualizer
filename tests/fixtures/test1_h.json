@@ -38,13 +38,13 @@
   "gateCount": 1,
   "circuitDepth": 1,
   "finalCounts": {
-    "0": 503,
-    "1": 521
+    "0": 530,
+    "1": 494
   },
   "finalProbabilities": {
-    "0": 0.4912,
-    "1": 0.5088
+    "0": 0.5176,
+    "1": 0.4824
   },
-  "executionTimeMs": 285,
-  "executionTime": "285 ms"
+  "executionTimeMs": 209,
+  "executionTime": "209 ms"
 }

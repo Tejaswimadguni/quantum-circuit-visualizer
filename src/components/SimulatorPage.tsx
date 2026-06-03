@@ -5,6 +5,7 @@ import Modal from './Modal';
 import EmptyState from './EmptyState';
 import SimulatorGrid from './SimulatorGrid';
 import BlochSphere from './BlochSphere';
+import QuantumAlgorithmLibrary from './QuantumAlgorithmLibrary';
 import useKeyboardShortcuts from '../hooks/useKeyboardShortcuts';
 import { gateOptions } from '../constants/gates';
 import {
@@ -17,6 +18,11 @@ import {
   resolveCnotWiring,
   CircuitEntry,
 } from '../utils/circuit';
+import {
+  ALGORITHM_TEMPLATES,
+  AlgorithmTemplate,
+  validateCircuitEntries,
+} from '../utils/algorithmTemplates';
 
 const initialQubits = ['q0', 'q1', 'q2'];
 const initialLogs = ['Ready. Select a gate and place it on the grid.'];
@@ -440,6 +446,23 @@ export default function SimulatorPage({ showToast }: { showToast: (message: stri
     showToast(`${demoName.charAt(0).toUpperCase() + demoName.slice(1)} demo loaded.`);
   };
 
+  const handleLoadAlgorithm = (template: AlgorithmTemplate) => {
+    if (!validateCircuitEntries(template.entries, template.requiredQubits)) {
+      pushLog(`Failed to load algorithm ${template.name}: invalid template.`);
+      showToast('Algorithm template is invalid and cannot be loaded.');
+      return;
+    }
+
+    const algorithmQubits = Array.from({ length: template.requiredQubits }, (_, index) => `q${index}`);
+    setQubits(algorithmQubits);
+    updateCircuitEntries(template.entries);
+    setSelectedCell(null);
+    setSelectedGate('H');
+    setModalOpen(false);
+    pushLog(`Loaded algorithm ${template.name}.`);
+    showToast(`${template.name} loaded.`);
+  };
+
   useEffect(() => {
     const demo = searchParams.get('demo');
     if (demo && demoCircuits[demo]) {
@@ -614,6 +637,11 @@ export default function SimulatorPage({ showToast }: { showToast: (message: stri
               </div>
             </div>
           </div>
+
+          <QuantumAlgorithmLibrary
+            algorithms={Object.values(ALGORITHM_TEMPLATES)}
+            onLoad={handleLoadAlgorithm}
+          />
 
           <div className="rounded-[2rem] border border-white/10 bg-[#06102f]/95 p-6 shadow-glow">
             <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
