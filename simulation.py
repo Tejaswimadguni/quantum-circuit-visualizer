@@ -289,7 +289,8 @@ def run_quantum_simulation_with_steps(
     steps = []
 
     # Initialize with |00...0⟩ state
-    current_circuit = QuantumCircuit(qubit_count)
+    # Ensure classical bits exist so `measure(qubit, qubit)` is valid during step-by-step execution.
+    current_circuit = QuantumCircuit(qubit_count, qubit_count)
     try:
         current_statevector = Statevector.from_label('0' * qubit_count)
     except Exception:
@@ -307,6 +308,12 @@ def run_quantum_simulation_with_steps(
             sv_before = current_statevector.data
             state_before = _format_statevector(sv_before)
             probs_before = _get_probabilities_from_statevector(sv_before)
+            bloch_before = _bloch_vectors_for_step(current_statevector, probs_before, qubit_count)
+        elif isinstance(current_statevector, dict):
+            # current_statevector may be a counts dict from a previous measurement; format accordingly
+            total = sum(current_statevector.values())
+            state_before = ', '.join([f'{count/total:.3f}|{state}⟩' for state, count in sorted(current_statevector.items())])
+            probs_before = {state: round(count / total, 4) for state, count in current_statevector.items()}
             bloch_before = _bloch_vectors_for_step(current_statevector, probs_before, qubit_count)
         else:
             state_before = _format_statevector(current_statevector)
