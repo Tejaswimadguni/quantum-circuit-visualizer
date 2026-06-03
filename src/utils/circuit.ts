@@ -3,6 +3,7 @@ export type CircuitEntry = {
   qubit: number;
   column: number;
   control?: number;
+  control2?: number;
   target?: number;
   angle?: number;
 };
@@ -44,12 +45,15 @@ export const buildGrid = (entries: CircuitEntry[], rows: number, columns = MAX_C
         : entry.gate;
 
     if (
-      (entry.gate === 'CNOT' || entry.gate === 'CZ' || entry.gate === 'SWAP' || entry.gate === 'CP') &&
+      (entry.gate === 'CNOT' || entry.gate === 'CZ' || entry.gate === 'SWAP' || entry.gate === 'CP' || entry.gate === 'CCX') &&
       entry.control !== undefined &&
       entry.target !== undefined
     ) {
       if (entry.control < rows) {
         grid[entry.control][entry.column] = label;
+      }
+      if (entry.control2 !== undefined && entry.control2 < rows) {
+        grid[entry.control2][entry.column] = label;
       }
       if (entry.target < rows) {
         grid[entry.target][entry.column] = label;

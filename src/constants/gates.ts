@@ -50,6 +50,13 @@ export const gateOptions: GateOption[] = [
     details: 'Applies a Z phase to the target qubit when the control qubit is |1⟩.',
   },
   {
+    id: 'CCX',
+    label: 'CCX',
+    description: 'Toffoli',
+    accent: 'fuchsia',
+    details: 'Flips the target qubit only when both control qubits are |1⟩.',
+  },
+  {
     id: 'SWAP',
     label: 'SWAP',
     description: 'Swap qubits',
@@ -86,6 +93,7 @@ export const gateAccentClasses: Record<string, string> = {
   Z: 'from-sky-400 to-cyan-400',
   CNOT: 'from-teal-400 to-cyan-300',
   CZ: 'from-emerald-400 to-lime-500',
+  CCX: 'from-fuchsia-400 to-purple-500',
   SWAP: 'from-rose-400 to-fuchsia-500',
   RZ: 'from-indigo-400 to-blue-500',
   CP: 'from-lime-400 to-emerald-500',

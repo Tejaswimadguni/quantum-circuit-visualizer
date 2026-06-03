@@ -6,7 +6,7 @@ from qiskit import QuantumCircuit, transpile
 from qiskit_aer import AerSimulator
 from qiskit.quantum_info import Statevector
 
-SUPPORTED_GATES = {'H', 'X', 'Y', 'Z', 'CNOT', 'CZ', 'SWAP', 'RZ', 'CP', 'MEASURE'}
+SUPPORTED_GATES = {'H', 'X', 'Y', 'Z', 'CNOT', 'CZ', 'CCX', 'SWAP', 'RZ', 'CP', 'MEASURE'}
 
 
 class SimulationError(Exception):
@@ -40,6 +40,15 @@ def _validate_entry(entry: Any) -> Dict[str, Any]:
         if control == target:
             raise SimulationError(f'{gate} control and target must be different qubits.')
         normalized.update({'control': control, 'target': target})
+    elif gate == 'CCX':
+        control = entry.get('control')
+        control2 = entry.get('control2')
+        target = entry.get('target')
+        if not isinstance(control, int) or not isinstance(control2, int) or not isinstance(target, int):
+            raise SimulationError('CCX entries must include integer control, control2, and target fields.')
+        if control == control2 or control == target or control2 == target:
+            raise SimulationError('CCX controls and target must all be different qubits.')
+        normalized.update({'control': control, 'control2': control2, 'target': target})
     elif gate == 'CP':
         control = entry.get('control')
         target = entry.get('target')
@@ -74,6 +83,8 @@ def _get_qubit_count(entries: List[Dict[str, Any]]) -> int:
     for entry in entries:
         if entry['gate'] in {'CNOT', 'CZ', 'SWAP'}:
             highest_index = max(highest_index, entry['control'], entry['target'])
+        elif entry['gate'] == 'CCX':
+            highest_index = max(highest_index, entry['control'], entry['control2'], entry['target'])
         elif entry['gate'] in {'CP'}:
             highest_index = max(highest_index, entry['control'], entry['target'])
         else:
@@ -96,6 +107,8 @@ def build_quantum_circuit(entries: List[Any]) -> QuantumCircuit:
             circuit.cx(entry['control'], entry['target'])
         elif gate == 'CZ':
             circuit.cz(entry['control'], entry['target'])
+        elif gate == 'CCX':
+            circuit.ccx(entry['control'], entry['control2'], entry['target'])
         elif gate == 'SWAP':
             circuit.swap(entry['control'], entry['target'])
         elif gate == 'CP':
@@ -325,6 +338,8 @@ def run_quantum_simulation_with_steps(
             current_circuit.cx(entry['control'], entry['target'])
         elif gate == 'CZ':
             current_circuit.cz(entry['control'], entry['target'])
+        elif gate == 'CCX':
+            current_circuit.ccx(entry['control'], entry['control2'], entry['target'])
         elif gate == 'SWAP':
             current_circuit.swap(entry['control'], entry['target'])
         elif gate == 'CP':
@@ -427,6 +442,8 @@ def run_quantum_simulation_with_steps(
             final_circuit.cx(entry['control'], entry['target'])
         elif gate == 'CZ':
             final_circuit.cz(entry['control'], entry['target'])
+        elif gate == 'CCX':
+            final_circuit.ccx(entry['control'], entry['control2'], entry['target'])
         elif gate == 'SWAP':
             final_circuit.swap(entry['control'], entry['target'])
         elif gate == 'CP':

@@ -75,15 +75,22 @@ export default function SimulatorGrid({
               {row.map((cell, colIndex) => {
                 const isSelected = selectedCell?.row === rowIndex && selectedCell.column === colIndex;
                 const isExecuting = executingCell?.row === rowIndex && executingCell.column === colIndex;
-                const entryAtCell = entries.find((entry) => entry.column === colIndex && (entry.qubit === rowIndex || entry.control === rowIndex || entry.target === rowIndex));
+                const entryAtCell = entries.find(
+                  (entry) =>
+                    entry.column === colIndex &&
+                    (entry.qubit === rowIndex || entry.control === rowIndex || entry.control2 === rowIndex || entry.target === rowIndex)
+                );
                 const baseGate = cell?.split('(')[0] ?? entryAtCell?.gate ?? null;
                 const cellAccent = baseGate ? gateAccentClasses[baseGate] ?? 'from-cyan-400 to-blue-500' : 'from-white/5 to-white/5';
-                const isControl = !!entryAtCell && entryAtCell.control === rowIndex && entryAtCell.target !== undefined;
-                const isTarget = !!entryAtCell && entryAtCell.target === rowIndex && entryAtCell.control !== undefined;
+                const isControl1 = !!entryAtCell && entryAtCell.control === rowIndex;
+                const isControl2 = !!entryAtCell && entryAtCell.control2 === rowIndex;
+                const isTarget = !!entryAtCell && entryAtCell.target === rowIndex;
                 const renderedLabel = entryAtCell
-                  ? isControl && !isTarget
+                  ? isControl1 || isControl2
                     ? '●'
                     : isTarget && entryAtCell.gate === 'CNOT'
+                    ? '⊕'
+                    : isTarget && entryAtCell.gate === 'CCX'
                     ? '⊕'
                     : isTarget && entryAtCell.gate === 'CZ'
                     ? 'Z'

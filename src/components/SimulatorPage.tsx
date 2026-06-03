@@ -253,6 +253,16 @@ export default function SimulatorPage({ showToast }: { showToast: (message: stri
         };
       }
 
+      if (entry.gate === 'CCX') {
+        return {
+          gate: 'CCX',
+          control: entry.control,
+          control2: entry.control2,
+          target: entry.target,
+          column: entry.column,
+        };
+      }
+
       if (entry.gate === 'RZ') {
         return {
           gate: 'RZ',
@@ -435,6 +445,43 @@ export default function SimulatorPage({ showToast }: { showToast: (message: stri
       ]);
       pushLog(`Placed ${selectedGate} with control q${row} and target q${target} at column ${column + 1}.`);
       showToast(`${selectedGate} gate placed.`);
+      return;
+    }
+
+    if (selectedGate === 'CCX') {
+      if (qubits.length < 3) {
+        showToast('CCX requires at least three qubits.');
+        return;
+      }
+
+      const spanStart =
+        row === 0
+          ? 0
+          : row === qubits.length - 1
+          ? qubits.length - 3
+          : row === 1
+          ? 0
+          : row === qubits.length - 2
+          ? qubits.length - 3
+          : row - 1;
+
+      const control = spanStart;
+      const control2 = spanStart + 1;
+      const target = spanStart + 2;
+
+      updateCircuitEntries([
+        ...circuitEntries,
+        {
+          gate: 'CCX',
+          qubit: row,
+          column,
+          control,
+          control2,
+          target,
+        },
+      ]);
+      pushLog(`Placed CCX with controls q${control}, q${control2} and target q${target} at column ${column + 1}.`);
+      showToast('CCX gate placed.');
       return;
     }
 
